@@ -140,63 +140,82 @@ def computeft_gdcm_strain(data):
 
 def output_imgdict(imagefile):
     '''
-    converts raw pydicom to numpy arrays
+    converts raw dicom to numpy arrays
     '''
     try:
         ds = imagefile
-        if len(ds.pixel_array.shape) == 4:  #format: 3,         nframes,    nrow,   ncol 
-                                            #format: nframes,   nrows,      ncols,  3
+        if len(ds.pixel_array.shape) == 4: #OLDformat 3, nframes, nrow, ncol
+            #format: nframes, nrows, ncols, YUV
             nframes = ds.pixel_array.shape[0]
             maxframes = nframes * 3
         elif len(ds.pixel_array.shape) == 3: #format nframes, nrow, ncol
             nframes = ds.pixel_array.shape[0]
             maxframes = nframes * 1
-        # print("nframes:", nframes)
         nrow = int(ds.Rows)
         ncol = int(ds.Columns)
         ArrayDicom = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
         imgdict = {}
-        for counter in range(0, maxframes, 3):  # this will iterate through all subframes for a loop
-            k = counter % nframes
-            j = (counter) // nframes
-            m = (counter + 1) % nframes
-            l = (counter + 1) // nframes
-            o = (counter + 2) % nframes
-            n = (counter + 2) // nframes
-            # print("j", j, "k", k, "l", l, "m", m, "n", n, "o", o)
-            if len(ds.pixel_array.shape) == 4:
-                a = ds.pixel_array[k, :, :, j]
-                b = ds.pixel_array[m, :, :, l]
-                c = ds.pixel_array[o, :, :, n]
-                d = np.vstack((a, b))
-                e = np.vstack((d, c)) # e is a,b,c stacked
-                # print(nrow, ncol)
-                g = np.reshape(e, (3 * nrow * ncol, 1))
-                y = g[::3]
-                u = g[1::3]
-                v = g[2::3]
-                y = np.reshape(y, (nrow, ncol))
-                u = np.reshape(u, (nrow, ncol))
-                v = np.reshape(v, (nrow, ncol))
-                ArrayDicom[:, :] = ybr2gray(y, u, v)
-                ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
-                counter = counter + 1
-                ArrayDicom.clip(0)
-                nrowout = nrow
-                ncolout = ncol
-                x = int(counter / 3)
-                imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
-            elif len(ds.pixel_array.shape) == 3:
-                ArrayDicom[:, :] = ds.pixel_array[counter, :, :]
-                ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
-                counter = counter + 1
-                ArrayDicom.clip(0)
-                nrowout = nrow
-                ncolout = ncol
-                x = int(counter / 3)
-                imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+        for counter in range(0, nframes):
+            a = ds.pixel_array[counter,:,:,0]
+            g = a.reshape(1, nrow * ncol)
+            y = g.reshape(nrow, ncol)
+            u = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
+            v = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
+            ArrayDicom[:, :] = ybr2gray(y,u,v)
+            ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
+            # counter = counter + 1
+            ArrayDicom.clip(0)
+            nrowout = nrow
+            ncolout = ncol
+            x = int(counter)
+            imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
         return imgdict
+        # for counter in range(0, maxframes, 3):  # this will iterate through all subframes for a loop
+        #     k = (counter + 0) % nframes
+        #     m = (counter + 1) % nframes
+        #     o = (counter + 2) % nframes
+        #     j = 0
+        #     l = 1
+        #     n = 2
+        #     # print("j", j, "k", k, "l", l, "m", m, "n", n, "o", o)
+        #     if len(ds.pixel_array.shape) == 4:         
+        #         a = ds.pixel_array[k, :, :, 0]
+        #         b = ds.pixel_array[m, :, :, 0]
+        #         c = ds.pixel_array[o, :, :, 0]
+        #         d = np.vstack((a, b))
+        #         e = np.vstack((d, c))
+        #         #print(e.shape)
+        #         # g = e.reshape(3 * nrow * ncol, 1)
+        #         g = e.reshape(1, 3 * nrow * ncol)
+        #         # print(g.shape)
+        #         y = g[:, ::3]
+        #         u = g[:, 1::3]
+        #         v = g[:, 2::3]
+        #         y = y.reshape(nrow, ncol)
+        #         u = u.reshape(nrow, ncol)
+        #         v = v.reshape(nrow, ncol)
+        #         ArrayDicom[:, :] = ybr2gray(y,u,v)
+        #         ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
+        #         counter = counter + 1
+        #         ArrayDicom.clip(0)
+        #         nrowout = nrow
+        #         ncolout = ncol
+        #         x = int(counter / 3)
+        #         # print("C")
+        #         print(ArrayDicom)
+        #         imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+        #     elif len(ds.pixel_array.shape) == 3:
+        #         ArrayDicom[:, :] = ds.pixel_array[counter, :, :]
+        #         ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
+        #         counter = counter + 1
+        #         ArrayDicom.clip(0)
+        #         nrowout = nrow
+        #         ncolout = ncol
+        #         x = int(counter / 3)
+        #         imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+        # return imgdict
     except:
+        print("Unexpected error:", sys.exc_info()[0])
         return None
 
 
@@ -230,20 +249,20 @@ def ybr2gray(y, u, v):
 
 def create_imgdict_from_dicom(directory, filename):
     """
-    convert compressed pydicom format into numpy array
+    convert compressed DICOM format into numpy array
     """
     targetfile = os.path.join(directory, filename)
     temp_directory = os.path.join(directory, "image")
     if not os.path.exists(temp_directory):
         os.makedirs(temp_directory)
-    ds = pydicom.read_file(targetfile, force = True)
+    ds = dicom.read_file(targetfile, force = True)
     if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
         outrawfile = os.path.join(temp_directory, filename + "_raw")
         command = 'gdcmconv -w ' + os.path.join(directory, filename) + " "  + outrawfile
         subprocess.Popen(command, shell=True)
         time.sleep(10)
         if os.path.exists(outrawfile):
-            ds = pydicom.read_file(outrawfile, force = True)
+            ds = dicom.read_file(outrawfile, force = True)
             imgdict = output_imgdict(ds)
         else:
             print(outrawfile, "missing")

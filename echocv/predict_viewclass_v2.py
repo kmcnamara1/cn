@@ -15,6 +15,7 @@ from shutil import copyfile
 from optparse import OptionParser
 from scipy.misc import imread
 from echoanalysis_tools import output_imgdict
+from matplotlib import pyplot as plt
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
@@ -36,15 +37,11 @@ def read_dicom(out_directory, filename, counter):
     if counter < 50:
         outrawfilename = filename + "_raw"
         print(out_directory, filename, counter, "trying")
-        print("A")
-        x = os.path.join(out_directory, outrawfilename)
-        print(x)
-        if os.path.exists(x):
+        rawfilenamepath = os.path.join(out_directory, outrawfilename)
+        if os.path.exists(rawfilenamepath):
         # if os.path.exists(os.path.join(out_directory, outrawfilename)):
-            print("B")
             time.sleep(2)
             try:
-                print("C")
                 ds = pydicom.read_file(os.path.join(out_directory, outrawfilename), force=True)
                 framedict = output_imgdict(ds)
                 y = len(framedict.keys()) - 1
@@ -52,12 +49,13 @@ def read_dicom(out_directory, filename, counter):
                     # m = random.sample(range(0, y), 10)
                     m = range(0, y)
                     for n in m:
-                        targetimage = framedict[n][:]
+                        targetimage = framedict[n]
                         if (n <10):
                             outfile = os.path.join(out_directory, filename) + "_0" + str(n) + '.jpg'
                         else:
                             outfile = os.path.join(out_directory, filename) + "_" + str(n) + '.jpg'
-                        cv2.imwrite(outfile, cv2.resize(targetimage, (224, 224)), [cv2.IMWRITE_JPEG_QUALITY, 95])
+                        resizedimg = cv2.resize(targetimage, (224, 224))
+                        cv2.imwrite(outfile, resizedimg, [cv2.IMWRITE_JPEG_QUALITY, 95])
                         counter = 50
             except (IOError, EOFError, KeyError) as e:
                 print(out_directory + "\t" + outrawfilename + "\t" +
@@ -80,19 +78,14 @@ def extract_imgs_from_dicom(directory, out_directory):
     allfiles = os.listdir(directory)
 
     for filename in allfiles[:]:
-        if "I0" in filename:
-            ds = pydicom.read_file(os.path.join(directory, filename),force=True)
-            if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-                outrawfilename = filename + "_raw"
-                # command = 'gdcmconv -w ' + os.path.join(directory, filename) + " " + os.path.join(out_directory, outrawfilename)
-                # subprocess.Popen(command, shell=True)
-                # filesize = os.stat(os.path.join(directory, filename)).st_size
-                # time.sleep(3)
-                # copyfile(filename, outrawfilename)
-                counter = 0
-                while counter < 5:
-                    counter = read_dicom(out_directory, filename, counter)
-                    counter = counter + 1
+      if not "image" in filename:
+          ds = pydicom.read_file(os.path.join(directory, filename),force=True)
+          if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
+              outrawfilename = filename + "_raw"
+              counter = 0
+              while counter < 5:
+                  counter = read_dicom(out_directory, filename, counter)
+                  counter = counter + 1
     return 1
 
 
@@ -107,6 +100,8 @@ def classify(directory, feature_dim, label_dim, model_name):
     for filename in os.listdir(directory):
         if "jpg" in filename:
             image = imread(directory + filename, flatten = True).astype('uint8')
+            plt.imshow(image)
+            plt.show()
             imagedict[filename] = [image.reshape((224,224,1))]
 
     tf.reset_default_graph() #clear default graph stack and reset global default graph
@@ -125,7 +120,7 @@ def classify(directory, feature_dim, label_dim, model_name):
 
 def main():
     model = "view_23_e5_class_11-Mar-2018"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/echoCV/dicomsample/EchoCV-Test"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/echoCV/dicomsample/EchoCV-Test-Labelled"
     model_name = '/content/gdrive/My Drive/CardioNexus/echoCV/models/' + model
     infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_" + model + ".txt")
     infile = infile.readlines()
