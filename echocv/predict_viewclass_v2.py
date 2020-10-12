@@ -6,11 +6,12 @@ import sys
 import cv2
 import pydicom
 import os
-sys.path.append('./funcs/')
-sys.path.append('./nets/')
+sys.path.append('/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/funcs')
+sys.path.append('/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/nets')
 import subprocess
 import time
 from shutil import rmtree
+from shutil import copyfile
 from optparse import OptionParser
 from scipy.misc import imread
 from echoanalysis_tools import output_imgdict
@@ -35,9 +36,15 @@ def read_dicom(out_directory, filename, counter):
     if counter < 50:
         outrawfilename = filename + "_raw"
         print(out_directory, filename, counter, "trying")
-        if os.path.exists(os.path.join(out_directory, outrawfilename)):
+        print("A")
+        x = os.path.join(out_directory, outrawfilename)
+        print(x)
+        if os.path.exists(x):
+        # if os.path.exists(os.path.join(out_directory, outrawfilename)):
+            print("B")
             time.sleep(2)
             try:
+                print("C")
                 ds = pydicom.read_file(os.path.join(out_directory, outrawfilename), force=True)
                 framedict = output_imgdict(ds)
                 y = len(framedict.keys()) - 1
@@ -58,6 +65,7 @@ def read_dicom(out_directory, filename, counter):
         else:
             counter = counter + 1
             time.sleep(3)
+            print("D")
             read_dicom(out_directory, filename, counter)
     return counter
 
@@ -72,15 +80,15 @@ def extract_imgs_from_dicom(directory, out_directory):
     allfiles = os.listdir(directory)
 
     for filename in allfiles[:]:
-        if "I" in filename:
-            ds = pydicom.read_file(os.path.join(directory, filename),
-                                 force=True)
+        if "I0" in filename:
+            ds = pydicom.read_file(os.path.join(directory, filename),force=True)
             if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
                 outrawfilename = filename + "_raw"
-                command = 'gdcmconv -w ' + os.path.join(directory, filename) + " " + os.path.join(out_directory, outrawfilename)
-                subprocess.Popen(command, shell=True)
-                filesize = os.stat(os.path.join(directory, filename)).st_size
-                time.sleep(3)
+                # command = 'gdcmconv -w ' + os.path.join(directory, filename) + " " + os.path.join(out_directory, outrawfilename)
+                # subprocess.Popen(command, shell=True)
+                # filesize = os.stat(os.path.join(directory, filename)).st_size
+                # time.sleep(3)
+                # copyfile(filename, outrawfilename)
                 counter = 0
                 while counter < 5:
                     counter = read_dicom(out_directory, filename, counter)
@@ -117,17 +125,17 @@ def classify(directory, feature_dim, label_dim, model_name):
 
 def main():
     model = "view_23_e5_class_11-Mar-2018"
-    dicomdir = "dicomsample"
-    model_name = './models/' + model
-
-    infile = open("viewclasses_" + model + ".txt")
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/echoCV/dicomsample/EchoCV-Test"
+    model_name = '/content/gdrive/My Drive/CardioNexus/echoCV/models/' + model
+    infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_" + model + ".txt")
     infile = infile.readlines()
     views = [i.rstrip() for i in infile]
 
     feature_dim = 1
     label_dim = len(views)
 
-    out = open(model + "_" + dicomdir  + "_probabilities_CN.txt", 'w')
+    # out = open(model + "_" + dicomdir  + "_probabilities.txt", 'w')
+    out = open("view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt", 'w')
     out.write("study\timage")
     for j in views:
         out.write("\t" + "prob_" + j)
@@ -135,8 +143,8 @@ def main():
 
     x = time.time()
     temp_image_directory = dicomdir + '/image/'
-    if os.path.exists(temp_image_directory):
-        rmtree(temp_image_directory)
+    # if os.path.exists(temp_image_directory):
+    #     rmtree(temp_image_directory)
     if not os.path.exists(temp_image_directory):
         os.makedirs(temp_image_directory)
     extract_imgs_from_dicom(dicomdir, temp_image_directory)
