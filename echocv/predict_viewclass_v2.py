@@ -39,7 +39,6 @@ def read_dicom(out_directory, filename, counter):
         print(out_directory, filename, counter, "trying")
         rawfilenamepath = os.path.join(out_directory, outrawfilename)
         if os.path.exists(rawfilenamepath):
-        # if os.path.exists(os.path.join(out_directory, outrawfilename)):
             time.sleep(2)
             try:
                 ds = pydicom.read_file(os.path.join(out_directory, outrawfilename), force=True)
@@ -50,7 +49,7 @@ def read_dicom(out_directory, filename, counter):
                     m = range(0, y)
                     for n in m:
                         targetimage = framedict[n]
-                        if (n <10):
+                        if (n < 10):
                             outfile = os.path.join(out_directory, filename) + "_0" + str(n) + '.jpg'
                         else:
                             outfile = os.path.join(out_directory, filename) + "_" + str(n) + '.jpg'
@@ -100,8 +99,6 @@ def classify(directory, feature_dim, label_dim, model_name):
     for filename in os.listdir(directory):
         if "jpg" in filename:
             image = imread(directory + filename, flatten = True).astype('uint8')
-            plt.imshow(image)
-            plt.show()
             imagedict[filename] = [image.reshape((224,224,1))]
 
     tf.reset_default_graph() #clear default graph stack and reset global default graph
@@ -137,7 +134,7 @@ def main():
     out.write('\n')
 
     x = time.time()
-    temp_image_directory = dicomdir + '/image/'
+    temp_image_directory = dicomdir + '/image_view/'
     # if os.path.exists(temp_image_directory):
     #     rmtree(temp_image_directory)
     if not os.path.exists(temp_image_directory):

@@ -61,7 +61,7 @@ def extract_area_psax(video, study, outer_segs, inner_segs, psax_areas, x_scale,
 
 def compute_lvmi(dicomDir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol):
     l = lvlength
-    npydir = "./segment/psax/"
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/psax/"
     psax_outer_segs = np.load(npydir + "/" + videofile + "_lvo.npy")
     psax_outer_segs = remove_periphery(psax_outer_segs)
     psax_inner_segs = np.load(npydir + "/" + videofile + "_lv.npy")
@@ -155,7 +155,7 @@ def computediastole(lv_areas_window, ft):
 
 def compute_la_lv_volume(dicomDir, videofile, hr, ft, window, x_scale, y_scale,
                          nrow, ncol, view):
-    npydir = "./segment/" + view
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" + view
     la_segs = np.load(npydir + "/" + videofile + "_la.npy")
     la_segs = remove_periphery(la_segs)
     lv_segs = np.load(npydir + "/" + videofile + "_lv.npy")
@@ -233,32 +233,28 @@ def compute_la_lv_volume(dicomDir, videofile, hr, ft, window, x_scale, y_scale,
 
 def extractmetadata(dicomDir, videofile):
     print(videofile)
-    command = 'gdcmdump ' + dicomDir + "/" + videofile
-    encoding = 'utf-8'
-    pipe = subprocess.Popen(command, stdout=PIPE, stderr=None, shell=True, encoding=encoding)
-    text = pipe.communicate()[0]
-    # print(text)
-    data = text.split("\n")
-    a = computedeltaxy_gdcm(data)
+    videofilepath = dicomDir + '/' + videofile
+    ds = pydicom.dcmread(videofilepath)
+    a = computedeltaxy_gdcm(ds)
     if not a == None:
         x_scale, y_scale = a
     else:
         x_scale, y_scale = None, None
-    hr = computehr_gdcm(data)
-    b = computexy_gdcm(data)
+    hr = computehr_gdcm(ds)
+    b = computexy_gdcm(ds)
     if not b == None:
         nrow, ncol = b
     else:
         nrow, ncol = None, None
-    ft = computeft_gdcm_strain(data)
+    ft = computeft_gdcm_strain(ds)
     if hr < 40:
         print(hr, "problem heart rate")
         hr = 70
     return ft, hr, nrow, ncol, x_scale, y_scale
 
 def main():
-    viewfile = "view_23_e5_class_11-Mar-2018_dicomsample_probabilities_CN.txt"
-    dicomdir = "dicomsample"
+    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled"
     viewlist_a2c = []
     viewlist_a4c = []
     viewlist_psax = []
@@ -272,7 +268,7 @@ def main():
     for i in range(len(infile)):
         viewdict[infile[i]] = i + 2
      
-    probthresh = 0.1 #arbitrary choice of "probability" threshold for view classification
+    probthresh = 0.9 #arbitrary choice of "probability" threshold for view classification
 
     infile = open(viewfile)
     infile = infile.readlines()
@@ -280,10 +276,8 @@ def main():
     infile = [i.split('\t') for i in infile]
 
     for i in infile[1:]:
-        dicomdir = i[0]
-        # dicomdir = "dicomsample\image"
         filename = i[1]
-        filename = filename[0:3]
+        filename = filename[:-11]
         if eval(i[viewdict['psax_pap']]) > probthresh:
             if filename not in viewlist_psax:
                 viewlist_psax.append(filename)
@@ -302,6 +296,7 @@ def main():
         elif videofile in viewlist_a2c:
             view = "a2c"
         measuredict[videofile] = {}
+        print(dicomdir)
         ft, hr, nrow, ncol, x_scale, y_scale = extractmetadata(dicomdir, videofile)
         window =  int(((60 / hr) / (ft / 1000)))
         lavol, lvedv, lvesv, ef, diasttime, lveda_l = \

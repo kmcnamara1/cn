@@ -280,7 +280,7 @@ def outputStrain_window(frames, framelo, framehi, minmass, scorethresh,
 def initializeStrain(view):
     measureDict = {}
     driftcorrect = True
-    segmentDir = "./segment/" +  view
+    segmentDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" +  view
     if os.path.exists(segmentDir):
         allfiles = os.listdir(segmentDir)
         for fileName in allfiles:
@@ -344,22 +344,20 @@ def outputStrainpool(rawDir, tmpDir, filePrefix, scorethresh):
         return 1
 
 def extractmetadata(dicomDir, videoFile):
-    command = 'gdcmdump ' + dicomDir + "/" + videoFile
-    pipe = subprocess.Popen(command, stdout=PIPE, stderr=None, shell=True)
-    text = pipe.communicate()[0]
-    data = text.split("\n")
-    a = computedeltaxy_gdcm(data)
+    videofilepath = dicomDir + '/' + videofile
+    ds = pydicom.dcmread(videofilepath)
+    a = computedeltaxy_gdcm(ds)
     if not a[0] == None:
         x_scale, y_scale = a
     else:
         x_scale, y_scale = None, None
-    hr = computehr_gdcm(data)
-    b = computexy_gdcm(data)
+    hr = computehr_gdcm(ds)
+    b = computexy_gdcm(ds)
     if not b[0] == None:
         nrow, ncol = b
     else:
         nrow, ncol = None, None
-    ft = computeft_gdcm_strain(data)
+    ft = computeft_gdcm_strain(ds)
     return ft, hr, nrow, ncol, x_scale, y_scale
 
 
@@ -427,9 +425,9 @@ def createglslists(rawDir, badthresh_L, badthresh_R, tmpDir, direction):
                     glslist_unique.append(gls)
     return glslist, glslist_unique
 
-tteDir = "./dicomsample/"
-outFile = "teststudy_strain_gls_L_R.txt"
-tmpDir = "./straintmp/"
+tteDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+outFile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/teststudy_strain_gls_L_R.txt"
+tmpDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/straintmp/"
 
 rawDir = tteDir
 

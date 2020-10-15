@@ -10,54 +10,34 @@ from subprocess import Popen, PIPE
 from scipy.misc import imresize
 import cv2
 
-def computehr_gdcm(data):
+def computehr_gdcm(ds):
     hr = "None"
-    for i in data:
-        i = i.lstrip()
-        if i.split(" ")[0] == '(0018,1088)':
-            hr = eval(i.split("[")[1].split("]")[0])
-            print("heart rate found")
-    return hr
+    hr = ds[0x18,0x1088].value
+    return int(hr)
 
-def computexy_gdcm(data):
-    for i in data:
-        i = i.lstrip()
-        if i.split(" ")[0] == '(0028,0010)':
-            rows = i.split(" ")[2]
-        elif i.split(" ")[0] == '(0028,0011)':
-            cols = i.split(" ")[2]
+def computexy_gdcm(ds):
+    rows = ds[0x28,0x10].value
+    cols = ds[0x28,0x11].value
     return int(rows), int(cols)
 
-def computebsa_gdcm(data):
+def computebsa_gdcm(ds):
     '''
     dubois, height in m, weight in kg
     :param data: 
     :return: 
     '''
-    for i in data:
-        i = i.lstrip()
-        if i.split(" ")[0] == '(0010,1020)':
-            h = i.split("[")[1].split("]")[0]
-        elif i.split(" ")[0] == '(0010,1030)':
-            w = i.split("[")[1].split("]")[0]
+    h = ds[0x10,0x1020].value
+    w = ds[0x10,0x1030].value
     return 0.20247 * (eval(h)**0.725) * (eval(w)**0.425)
 
-def computedeltaxy_gdcm(data):
+def computedeltaxy_gdcm(ds):
     '''
     the unit is the number of cm per pixel 
     '''
     xlist = []
     ylist = []
-    for i in data:
-        i = i.lstrip()
-        if i.split(" ")[0] == '(0018,602c)':
-            deltax = i.split(" ")[2]
-            if np.abs(eval(deltax)) > 0.012:
-                xlist.append(np.abs(eval(deltax)))
-        if i.split(" ")[0] == '(0018,602e)':
-            deltay = i.split(" ")[2]
-            if np.abs(eval(deltax)) > 0.012:
-                ylist.append(np.abs(eval(deltay)))
+    xlist.append(ds[0x18,0x6011][0][0x18,0x602c].value)
+    ylist.append(ds[0x18,0x6011][0][0x18,0x602e].value)
     return np.min(xlist), np.min(ylist)
 
 def remove_periphery(imgs):
@@ -116,27 +96,12 @@ def computeft_gdcm(video, study, appdir):
     ft = eval(frametime)
     return ft
 
-def computeft_gdcm_strain(data):
+def computeft_gdcm_strain(ds):
     defaultframerate = None
-    counter = 0
-    for i in data:
-        if i.split(" ")[0] == '(0018,1063)':
-            frametime = i.split(" ")[2][1:-1]
-            counter = 1
-        elif i.split(" ")[0] == '(0018,0040)':
-            framerate = i.split("[")[1].split(" ")[0][:-1]
-            frametime = str(1000 / eval(framerate))
-            counter = 1
-        elif i.split(" ")[0] == '(7fdf,1074)':
-            framerate = i.split(" ")[3]
-            frametime = str(1000 / eval(framerate))
-            counter = 1
-    if not counter == 1:
-        print("missing framerate")
-        framerate = defaultframerate
-        frametime = str(1000 / framerate)
-    ft = eval(frametime)
-    return ft
+    frametime = ds[0x18,0x1063].value #frametime
+    framerate = ds[0x18,0x40].value
+    ft = frametime
+    return int(ft)
 
 def output_imgdict(imagefile):
     '''
@@ -163,57 +128,12 @@ def output_imgdict(imagefile):
             v = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
             ArrayDicom[:, :] = ybr2gray(y,u,v)
             ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
-            # counter = counter + 1
             ArrayDicom.clip(0)
             nrowout = nrow
             ncolout = ncol
             x = int(counter)
             imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
         return imgdict
-        # for counter in range(0, maxframes, 3):  # this will iterate through all subframes for a loop
-        #     k = (counter + 0) % nframes
-        #     m = (counter + 1) % nframes
-        #     o = (counter + 2) % nframes
-        #     j = 0
-        #     l = 1
-        #     n = 2
-        #     # print("j", j, "k", k, "l", l, "m", m, "n", n, "o", o)
-        #     if len(ds.pixel_array.shape) == 4:         
-        #         a = ds.pixel_array[k, :, :, 0]
-        #         b = ds.pixel_array[m, :, :, 0]
-        #         c = ds.pixel_array[o, :, :, 0]
-        #         d = np.vstack((a, b))
-        #         e = np.vstack((d, c))
-        #         #print(e.shape)
-        #         # g = e.reshape(3 * nrow * ncol, 1)
-        #         g = e.reshape(1, 3 * nrow * ncol)
-        #         # print(g.shape)
-        #         y = g[:, ::3]
-        #         u = g[:, 1::3]
-        #         v = g[:, 2::3]
-        #         y = y.reshape(nrow, ncol)
-        #         u = u.reshape(nrow, ncol)
-        #         v = v.reshape(nrow, ncol)
-        #         ArrayDicom[:, :] = ybr2gray(y,u,v)
-        #         ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
-        #         counter = counter + 1
-        #         ArrayDicom.clip(0)
-        #         nrowout = nrow
-        #         ncolout = ncol
-        #         x = int(counter / 3)
-        #         # print("C")
-        #         print(ArrayDicom)
-        #         imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
-        #     elif len(ds.pixel_array.shape) == 3:
-        #         ArrayDicom[:, :] = ds.pixel_array[counter, :, :]
-        #         ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
-        #         counter = counter + 1
-        #         ArrayDicom.clip(0)
-        #         nrowout = nrow
-        #         ncolout = ncol
-        #         x = int(counter / 3)
-        #         imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
-        # return imgdict
     except:
         print("Unexpected error:", sys.exc_info()[0])
         return None
@@ -252,20 +172,20 @@ def create_imgdict_from_dicom(directory, filename):
     convert compressed DICOM format into numpy array
     """
     targetfile = os.path.join(directory, filename)
-    temp_directory = os.path.join(directory, "image")
+    temp_directory = os.path.join(directory, "image_segment")
     if not os.path.exists(temp_directory):
         os.makedirs(temp_directory)
-    ds = dicom.read_file(targetfile, force = True)
+    ds = pydicom.read_file(targetfile, force = True)
     if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-        outrawfile = os.path.join(temp_directory, filename + "_raw")
-        command = 'gdcmconv -w ' + os.path.join(directory, filename) + " "  + outrawfile
-        subprocess.Popen(command, shell=True)
-        time.sleep(10)
-        if os.path.exists(outrawfile):
-            ds = dicom.read_file(outrawfile, force = True)
+        # outrawfile = os.path.join(temp_directory, filename + "_raw")
+        # command = 'gdcmconv -w ' + os.path.join(directory, filename) + " "  + outrawfile
+        # subprocess.Popen(command, shell=True)
+        # time.sleep(10)
+        if os.path.exists(targetfile):
+            ds = pydicom.read_file(targetfile, force = True)
             imgdict = output_imgdict(ds)
         else:
-            print(outrawfile, "missing")
+            print(targetfile, "missing")
     return imgdict
 
 
