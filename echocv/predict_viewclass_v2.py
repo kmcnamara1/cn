@@ -78,13 +78,16 @@ def extract_imgs_from_dicom(directory, out_directory):
 
     for filename in allfiles[:]:
       if not "image" in filename:
-          ds = pydicom.read_file(os.path.join(directory, filename),force=True)
-          if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-              outrawfilename = filename + "_raw"
-              counter = 0
-              while counter < 5:
-                  counter = read_dicom(out_directory, filename, counter)
-                  counter = counter + 1
+              print(filename)
+              ds = pydicom.read_file(os.path.join(directory, filename),force=True)
+              if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
+                  outrawfilename = filename + "_raw"
+                  out_directory_path = out_directory + '/' + outrawfilename
+                  ds.save_as(out_directory_path)
+                  counter = 0
+                  while counter < 5:
+                      counter = read_dicom(out_directory, filename, counter)
+                      counter = counter + 1
     return 1
 
 
@@ -117,8 +120,8 @@ def classify(directory, feature_dim, label_dim, model_name):
 
 def main():
     model = "view_23_e5_class_11-Mar-2018"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/echoCV/dicomsample/EchoCV-Test-Labelled"
-    model_name = '/content/gdrive/My Drive/CardioNexus/echoCV/models/' + model
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+    model_name = '/content/gdrive/My Drive/CardioNexus/echocv_models/' + model
     infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_" + model + ".txt")
     infile = infile.readlines()
     views = [i.rstrip() for i in infile]
@@ -127,14 +130,14 @@ def main():
     label_dim = len(views)
 
     # out = open(model + "_" + dicomdir  + "_probabilities.txt", 'w')
-    out = open("view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt", 'w')
+    out = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt", 'w')
     out.write("study\timage")
     for j in views:
         out.write("\t" + "prob_" + j)
     out.write('\n')
 
     x = time.time()
-    temp_image_directory = dicomdir + '/image_view/'
+    temp_image_directory = dicomdir + 'image_view/'
     # if os.path.exists(temp_image_directory):
     #     rmtree(temp_image_directory)
     if not os.path.exists(temp_image_directory):

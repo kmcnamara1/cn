@@ -6,6 +6,7 @@ import pandas as pd
 import scipy.fftpack as fft
 import pickle
 from echoanalysis_tools import *
+import json
 
 def point_distance(point1, point2):
     point1 = np.array(point1).astype(float)
@@ -61,10 +62,10 @@ def extract_area_psax(video, study, outer_segs, inner_segs, psax_areas, x_scale,
 
 def compute_lvmi(dicomDir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol):
     l = lvlength
-    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/psax/"
-    psax_outer_segs = np.load(npydir + "/" + videofile + "_lvo.npy")
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/psax/"
+    psax_outer_segs = np.load(npydir + videofile + "_lvo.npy")
     psax_outer_segs = remove_periphery(psax_outer_segs)
-    psax_inner_segs = np.load(npydir + "/" + videofile + "_lv.npy")
+    psax_inner_segs = np.load(npydir + videofile + "_lv.npy")
     psax_inner_segs = remove_periphery(psax_inner_segs)
     psax_outer_areas = extract_areas(psax_outer_segs)
     psax_inner_areas = extract_areas(psax_inner_segs)
@@ -155,7 +156,7 @@ def computediastole(lv_areas_window, ft):
 
 def compute_la_lv_volume(dicomDir, videofile, hr, ft, window, x_scale, y_scale,
                          nrow, ncol, view):
-    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" + view
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/" + view
     la_segs = np.load(npydir + "/" + videofile + "_la.npy")
     la_segs = remove_periphery(la_segs)
     lv_segs = np.load(npydir + "/" + videofile + "_lv.npy")
@@ -253,13 +254,13 @@ def extractmetadata(dicomDir, videofile):
     return ft, hr, nrow, ncol, x_scale, y_scale
 
 def main():
-    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled"
+    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
     viewlist_a2c = []
     viewlist_a4c = []
     viewlist_psax = []
     
-    infile = open("viewclasses_view_23_e5_class_11-Mar-2018.txt")
+    infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_view_23_e5_class_11-Mar-2018.txt")
     infile = infile.readlines()
     infile = [i.rstrip() for i in infile]
 
@@ -317,9 +318,9 @@ def main():
         lvmass = compute_lvmi(dicomdir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol)
         measuredict[videofile]['lvmass'] = lvmass
     print(measuredict.items())
-    out = open(dicomdir + "_measurements_dict.txt", 'w+b')
-    pickle.dump(measuredict, out)
-    out.close()
+    outfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/" + "measurements_dict.txt"
+    with open(outfile, 'w') as file:
+        file.write(json.dumps(measuredict)) # use `json.loads` to do the reverse
 
 if __name__ == '__main__':
     main()

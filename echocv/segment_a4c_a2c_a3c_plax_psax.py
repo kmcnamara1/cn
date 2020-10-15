@@ -30,7 +30,7 @@ class Unet(object):
 
         self.pred = self.unet(self.x_test, mean, keep_prob = 1.0, reuse = True)
         self.loss_summary = tf.summary.scalar('loss', self.loss)
-#         self.train_summary = tf.summary.scalar('training_accuracy', self.train_accuracy)
+        # self.train_summary = tf.summary.scalar('training_accuracy', self.train_accuracy)
     
     # Gradient Descent on mini-batch
     def fit_batch(self, sess, x_train, y_train):
@@ -126,7 +126,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model1
         with g_1.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess1,'/content/gdrive/My Drive/CardioNexus/echoCV/models/a4c_45_20_all_model.ckpt-9000')
+            saver.restore(sess1,'/content/gdrive/My Drive/CardioNexus/echocv_models/a4c_45_20_all_model.ckpt-9000')
     elif view == "a2c":
         g_2 = tf.Graph()
         with g_2.as_default():
@@ -138,7 +138,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model2
         with g_2.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess2,'/content/gdrive/My Drive/CardioNexus/echoCV/models/a2c_45_20_all_model.ckpt-10600')
+            saver.restore(sess2,'/content/gdrive/My Drive/CardioNexus/echocv_models/a2c_45_20_all_model.ckpt-10600')
     elif view == "a3c":
         g_3 = tf.Graph()
         with g_3.as_default():
@@ -150,7 +150,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model3
         with g_3.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess3,'/content/gdrive/My Drive/CardioNexus/echoCV/models/a3c_45_20_all_model.ckpt-10500')
+            saver.restore(sess3,'/content/gdrive/My Drive/CardioNexus/echocv_models/a3c_45_20_all_model.ckpt-10500')
     elif view == "psax":
         g_4 = tf.Graph()
         with g_4.as_default():
@@ -162,7 +162,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model4
         with g_4.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess4,'/content/gdrive/My Drive/CardioNexus/echoCV/models/psax_45_20_all_model.ckpt-9300')
+            saver.restore(sess4,'/content/gdrive/My Drive/CardioNexus/echocv_models/psax_45_20_all_model.ckpt-9300')
     elif view == "plax":
         g_5 = tf.Graph()
         with g_5.as_default():
@@ -174,8 +174,8 @@ def segmentChamber(videofile, dicomdir, view):
             model = model5
         with g_5.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess5,'/content/gdrive/My Drive/CardioNexus/echoCV/models/plax_45_20_all_model.ckpt-9600')
-    outpath = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" + view + "/"
+            saver.restore(sess5,'/content/gdrive/My Drive/CardioNexus/echocv_models/plax_45_20_all_model.ckpt-9600')
+    outpath = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/" + view + "/"
     if not os.path.exists(outpath):
         os.makedirs(outpath)
     framedict = create_imgdict_from_dicom(dicomdir, videofile)
@@ -254,7 +254,8 @@ def extract_images(framedict):
         image[:,:] = imresize(rgb2gray(framedict[key]), (384,384,1))
         images.append(image)
         orig_images.append(framedict[key])
-    images = np.array(images).reshape((len(images), 384,384,1))
+    images = np.array(images).reshape((len(images), 384,384,1))  
+    print(images.shape)
     return images, orig_images
 
 def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label):
@@ -268,6 +269,7 @@ def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label
     for i in range(len(images)):
         seg = np.argmax(model.predict(sess, images[i:i+1])[0,:,:,:], 2)
         segs.append(seg)
+    print(len(segs))
     lv_segs = []
     lvo_segs = []
     la_segs = []
@@ -281,8 +283,8 @@ def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label
     return lv_segs, la_segs, lvo_segs, preds
 
 def main():
-    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled"
+    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
     viewlist_a2c = []
     viewlist_a3c = []
     viewlist_a4c = []
@@ -298,7 +300,7 @@ def main():
     for i in range(len(infile)):
         viewdict[infile[i]] = i + 2
      
-    probthresh = 0.8 #arbitrary choice of "probability" threshold for view classification
+    probthresh = 0.9 #arbitrary choice of "probability" threshold for view classification
 
     infile = open(viewfile)
     infile = infile.readlines()
@@ -327,7 +329,7 @@ def main():
                 viewlist_plax.append(filename)
     print(viewlist_a2c, viewlist_a4c, viewlist_a3c, viewlist_psax, viewlist_plax)
     segmentstudy(viewlist_a2c, viewlist_a3c, viewlist_a4c, viewlist_psax, viewlist_plax, dicomdir)
-    tempdir = os.path.join(dicomdir, "segimage")
+    tempdir = os.path.join(dicomdir, "image_segment_temp")
     #if os.path.exists(tempdir):
     #    shutil.rmtree(tempdir)
 
