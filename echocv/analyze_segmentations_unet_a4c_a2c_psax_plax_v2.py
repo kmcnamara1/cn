@@ -8,6 +8,10 @@ import pickle
 from echoanalysis_tools import *
 import json
 
+# view_label = "a2c"
+# view_label = "a4c"
+view_label = "psax"
+
 def point_distance(point1, point2):
     point1 = np.array(point1).astype(float)
     point2 = np.array(point2).astype(float)
@@ -61,8 +65,9 @@ def extract_area_psax(video, study, outer_segs, inner_segs, psax_areas, x_scale,
     return len(x_outer)*x_area_scale**2, len(x_inner)*x_area_scale**2
 
 def compute_lvmi(dicomDir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol):
+    print(dicomDir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol)
     l = lvlength
-    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/psax/"
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/image_segmented/psax/"
     psax_outer_segs = np.load(npydir + videofile + "_lvo.npy")
     psax_outer_segs = remove_periphery(psax_outer_segs)
     psax_inner_segs = np.load(npydir + videofile + "_lv.npy")
@@ -155,8 +160,8 @@ def computediastole(lv_areas_window, ft):
         return np.nan
 
 def compute_la_lv_volume(dicomDir, videofile, hr, ft, window, x_scale, y_scale,
-                         nrow, ncol, view):
-    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/" + view
+                         nrow, ncol, view):  
+    npydir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/image_segmented/" + view
     la_segs = np.load(npydir + "/" + videofile + "_la.npy")
     la_segs = remove_periphery(la_segs)
     lv_segs = np.load(npydir + "/" + videofile + "_lv.npy")
@@ -254,8 +259,8 @@ def extractmetadata(dicomDir, videofile):
     return ft, hr, nrow, ncol, x_scale, y_scale
 
 def main():
-    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+    viewfile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label +"/results/" + view_label +"_probabilities.txt"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/"
     viewlist_a2c = []
     viewlist_a4c = []
     viewlist_psax = []
@@ -310,15 +315,18 @@ def main():
         measuredict[videofile]['ef'] = ef
         measuredict[videofile]['diasttime'] = diasttime
         measuredict[videofile]['lveda_l'] = lveda_l
+    
     lvlength = np.median(lvlengthlist)
+    
     for videofile in viewlist_psax:
         measuredict[videofile] = {}
         ft, hr, nrow, ncol, x_scale, y_scale = extractmetadata(dicomdir, videofile)
+        # print(ft, hr, nrow, ncol, x_scale, y_scale)
         window =  int(((60 / hr) / (ft / 1000)))
         lvmass = compute_lvmi(dicomdir, videofile, lvlength, hr, ft, window, x_scale, y_scale, nrow, ncol)
         measuredict[videofile]['lvmass'] = lvmass
     print(measuredict.items())
-    outfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/" + "measurements_dict.txt"
+    outfile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/results/" + view_label +"_measurements.txt"
     with open(outfile, 'w') as file:
         file.write(json.dumps(measuredict)) # use `json.loads` to do the reverse
 

@@ -15,6 +15,10 @@ from echoanalysis_tools import *
 
 parser=OptionParser()
 
+view_label = "a2c"
+# view_label = "a4c"
+# view_label = "psax"
+
 def computemoments_image(image):
     chull = convex_hull_image(image)
     image[chull] += 3
@@ -160,7 +164,7 @@ def findpart(frames, frameno, minthresh, ns, verbose, nrow, ncol):
     ns = 1
     sep = dtarget  #smaller value leads to fewer points
     f = tp.locate(frames[frameno], noise_size = ns, separation = sep, smoothing_size = \
-                  dtarget + 1, diameter = dtarget, minmass= minthresh , topn = \
+                  dtarget, diameter = dtarget, minmass= minthresh , topn = \
                   100, invert=False)
     if not f is None:
         ymin, ymax = np.min(f['y']), np.max(f['y'])
@@ -179,8 +183,7 @@ def testpart(frames, frameno, minthresh, ns, verbose):
     dtarget = 3
     ns = 1
     sep = dtarget  #smaller value leads to fewer points
-    f = tp.locate(frames[frameno], noise_size = ns, separation = sep, smoothing_size = \
-                  dtarget + 1, diameter = dtarget, minmass= minthresh , topn = 100, invert=False)
+    f = tp.locate(frames[frameno], noise_size=ns, separation=sep, smoothing_size=dtarget, diameter=dtarget, minmass=minthresh , topn=100, invert=False)
     nopart = f.shape[0]
     return nopart
 
@@ -280,17 +283,20 @@ def outputStrain_window(frames, framelo, framehi, minmass, scorethresh,
 def initializeStrain(view):
     measureDict = {}
     driftcorrect = True
-    segmentDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" +  view
+    # segmentDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/segmented_imgs/" +  view
+    segmentDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/image_segmented/" + view
     if os.path.exists(segmentDir):
         allfiles = os.listdir(segmentDir)
         for fileName in allfiles:
             if "la.npy" in fileName:
-                print(fileName)
-                filePrefix = fileName.split("_la")[0]
-                frameno = eval(filePrefix.split("Image")[1].split("-")[1].split(".dcm")[0])
-                videoFile = "Image-" + str(frameno) + ".dcm"
+                # filePrefix = fileName.split("_la")[0]
+                # frameno = eval(filePrefix.split("Image")[1].split("-")[1].split(".dcm")[0])
+                filePrefix = fileName[:-7]
+                videoFile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a2c/" + filePrefix
+                videoFile = filePrefix
+                # videoFile = "Image-" + str(1) + ".dcm"
                 try:
-                    output = outputcropped(videoFile, view)
+                    output = outputcropped(videoFile, view, view_label)
                     #output = 1
                     if output == 1:
                         measureDict[filePrefix] = {}
@@ -299,9 +305,10 @@ def initializeStrain(view):
     return measureDict
 
 def outputStrainpool(rawDir, tmpDir, filePrefix, scorethresh):
-        frameno = filePrefix.split("Image")[1].split("-")[1].split(".dcm")[0]
-        videoFile = "Image-" + frameno + ".dcm"
-        print(videoFile)
+        # frameno = filePrefix.split("Image")[1].split("-")[1].split(".dcm")[0]
+        # videoFile = "Image-" + frameno + ".dcm"
+        print(filePrefix)
+        videoFile = filePrefix
         try:
             ft, hr, nrow, ncol, x_scale, y_scale = extractmetadata(rawDir, videoFile) 
             print(ft, hr, nrow, ncol, x_scale, y_scale)
@@ -316,9 +323,9 @@ def outputStrainpool(rawDir, tmpDir, filePrefix, scorethresh):
                     dymax = (ft/1000)*(yvel)/deltay
                     #print("dxmax", dxmax, "dymax", dymax)
                     for direction in ["left", "right"]:
-                        videodir = tmpDir + "/" + videoFile + "/maskedimages_" + direction + "/" 
+                        videodir = tmpDir + videoFile + "/maskedimages_" + direction + "/" 
                         print(videodir)
-                        frames = pims.ImageSequence(videodir + '/*.png', as_grey=True)
+                        frames = pims.ImageSequence(videodir + '/*.png')
                         nrow = frames[0].shape[0]
                         ncol = frames[0].shape[1]
                         minmass = 130
@@ -344,7 +351,7 @@ def outputStrainpool(rawDir, tmpDir, filePrefix, scorethresh):
         return 1
 
 def extractmetadata(dicomDir, videoFile):
-    videofilepath = dicomDir + '/' + videofile
+    videofilepath = dicomDir + '/' + videoFile
     ds = pydicom.dcmread(videofilepath)
     a = computedeltaxy_gdcm(ds)
     if not a[0] == None:
@@ -425,9 +432,16 @@ def createglslists(rawDir, badthresh_L, badthresh_R, tmpDir, direction):
                     glslist_unique.append(gls)
     return glslist, glslist_unique
 
-tteDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
-outFile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/teststudy_strain_gls_L_R.txt"
-tmpDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/straintmp/"
+
+view_label
+
+
+# tteDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+tteDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/"
+outFile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/results/" + view_label + "_strain_gls_L_R.txt"
+tmpDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/straintmp/"
+# outFile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/teststudy_strain_gls_L_R.txt"
+# tmpDir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/straintmp/"
 
 rawDir = tteDir
 
@@ -441,12 +455,15 @@ scorethresh = 0.85
 measureDicta4c = initializeStrain("a4c")
 measureDicta2c = initializeStrain("a2c")
 measureDict = dict(measureDicta4c.items() + measureDicta2c.items())
-print(measureDict.items())
+# print(measureDict.items())
 pool = Pool()                         
-job_args = [(rawDir, tmpDir, fileName, scorethresh) for i, fileName in
-            enumerate(measureDict.keys())]
-pool.map(outputStrainpool, job_args)  
-pool.close()
+job_args = [(rawDir, tmpDir, fileName, scorethresh) for i, fileName in enumerate(measureDict.keys())]
+print("Job args:")
+print(job_args[0][1])
+# rawDir, tmpDir, filePrefix, scorethresh
+# pool.map(outputStrainpool, job_args[0])  
+# pool.close()
+outputStrainpool(job_args[0][0], job_args[0][1], job_args[0][2], job_args[0][3])
 
 badthresh_L = 0.10
 badthresh_R = 0.10
@@ -463,6 +480,9 @@ glslist_L, glslist_L_unique, badthresh_L_L, badthresh_L_R = iterategls(badthresh
 glslist_R, glslist_R_unique, badthresh_R_L, badthresh_R_R = iterategls(badthresh_L, badthresh_R, tmpDir, "right")
 glslist_L_R, glslist_L_R_unique, badthresh_B_L, badthresh_B_R = iterategls(badthresh_L, badthresh_R,
                                               tmpDir, "both")
+
+print(glslist_L, glslist_R, glslist_L_R)
+
 out = open(outFile, 'w')
 out.write("direction\tgls_0\tgls_25\tgls_50\tgls_75\tgls_100\tnomeas\tnostudies\tbadthresh_L\tbadthrsh_R\n")
 a = str(np.nanpercentile(glslist_L, 0))

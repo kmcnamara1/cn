@@ -172,9 +172,9 @@ def create_imgdict_from_dicom(directory, filename):
     convert compressed DICOM format into numpy array
     """
     targetfile = os.path.join(directory, filename)
-    temp_directory = os.path.join(directory, "image_segment")
-    if not os.path.exists(temp_directory):
-        os.makedirs(temp_directory)
+    # temp_directory = os.path.join(directory, "image_segment")
+    # if not os.path.exists(temp_directory):
+    #     os.makedirs(temp_directory)
     ds = pydicom.read_file(targetfile, force = True)
     if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
         # outrawfile = os.path.join(temp_directory, filename + "_raw")

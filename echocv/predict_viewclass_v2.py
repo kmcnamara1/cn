@@ -78,6 +78,7 @@ def extract_imgs_from_dicom(directory, out_directory):
 
     for filename in allfiles[:]:
       if not "image" in filename:
+         if not "results" in filename:
               print(filename)
               ds = pydicom.read_file(os.path.join(directory, filename),force=True)
               if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
@@ -120,7 +121,13 @@ def classify(directory, feature_dim, label_dim, model_name):
 
 def main():
     model = "view_23_e5_class_11-Mar-2018"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a2c/"
+    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a3c/"
+    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a4c/"
+    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/plax/"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/psax/"
+
     model_name = '/content/gdrive/My Drive/CardioNexus/echocv_models/' + model
     infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_" + model + ".txt")
     infile = infile.readlines()
@@ -129,8 +136,14 @@ def main():
     feature_dim = 1
     label_dim = len(views)
 
-    # out = open(model + "_" + dicomdir  + "_probabilities.txt", 'w')
-    out = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt", 'w')
+    results_directory = dicomdir + 'results/'
+    if not os.path.exists(results_directory):
+        os.makedirs(results_directory)
+    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a2c/results/a2c_probabilities.txt", 'w')
+    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a3c/results/a3c_probabilities.txt", 'w')
+    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a4c/results/a4c_probabilities.txt", 'w')
+    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/plax/results/plax_probabilities.txt", 'w')
+    out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/psax/results/psax_probabilities.txt", 'w')
     out.write("study\timage")
     for j in views:
         out.write("\t" + "prob_" + j)

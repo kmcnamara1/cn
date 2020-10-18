@@ -8,11 +8,11 @@ from scipy.misc import imresize
 outDir = "./strainOutput/"
 segDir = "./segment/"
 
-def outputcropped(videoFile, view):
+def outputcropped(videoFile, view, view_label):
         flag = 1
         print(videoFile, view)
-        outDir = "./straintmp/" + videoFile
-        dicomdir = "./dicomsample/"
+        dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/"
+        outDir = dicomdir + "straintmp/" + videoFile
         if not os.path.exists(outDir):
             os.makedirs(outDir)
         outDir_left = outDir + "/maskedimages_left/"
@@ -21,11 +21,9 @@ def outputcropped(videoFile, view):
         outDir_right = outDir + "/maskedimages_right/"
         if not os.path.exists(outDir_right):
             os.makedirs(outDir_right)
-        npydir = "./segment/" + view
-        lvo_segs = np.load(npydir + "/" + videoFile +
-                          "_lvo.npy")
-        lv_segs = np.load(npydir + "/" + videoFile +
-                          "_lv.npy")
+        npydir = dicomdir + "image_segmented/" + view
+        lvo_segs = np.load(npydir + "/" + videoFile + "_lvo.npy")
+        lv_segs = np.load(npydir + "/" + videoFile + "_lv.npy")
         imgdict = create_imgdict_from_dicom(dicomdir, videoFile)
         nrow = imgdict[0].shape[0]
         ncol = imgdict[0].shape[1]

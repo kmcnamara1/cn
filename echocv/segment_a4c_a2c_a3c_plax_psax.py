@@ -11,7 +11,11 @@ from echoanalysis_tools import create_imgdict_from_dicom
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
-#purpose:
+# view_label = "a2c"
+# view_label = "a3c"
+view_label = "a4c"
+# view_label = "plax"
+# view_label = "psax"
 
 class Unet(object):        
     def __init__(self, mean, weight_decay, learning_rate, label_dim, maxout = False):
@@ -175,7 +179,7 @@ def segmentChamber(videofile, dicomdir, view):
         with g_5.as_default():
             saver = tf.train.Saver()
             saver.restore(sess5,'/content/gdrive/My Drive/CardioNexus/echocv_models/plax_45_20_all_model.ckpt-9600')
-    outpath = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/image_segmented/" + view + "/"
+    outpath = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/image_segmented/" + view + "/"
     if not os.path.exists(outpath):
         os.makedirs(outpath)
     framedict = create_imgdict_from_dicom(dicomdir, videofile)
@@ -203,26 +207,29 @@ def segmentChamber(videofile, dicomdir, view):
         plax_lv_segs, plax_la_segs, plax_ao_segs, preds = extract_segs(images, orig_images, model, sess, 1, 5, 3)
         np.save(outpath + '/' + videofile + '_lv', np.array(plax_lv_segs).astype('uint8'))
         np.save(outpath + '/' + videofile + '_la', np.array(plax_la_segs).astype('uint8'))
-    j = 0
+    # j = 10
     nrow = orig_images[0].shape[0]
     ncol = orig_images[0].shape[1]
-    print(nrow, ncol)
-    plt.figure(figsize = (5, 5))
-    plt.axis('off')
-    plt.imshow(imresize(preds, (nrow,ncol)))
-    plt.savefig(outpath + '/' + videofile + '_' + str(j) + '_' + 'segmentation.png')
-    plt.close() 
-    plt.figure(figsize = (5, 5))
-    plt.axis('off')
-    plt.imshow(orig_images[0])
-    plt.savefig(outpath + '/' + videofile + '_' + str(j) + '_' + 'originalimage.png')
-    plt.close()   
-    background = Image.open(outpath + '/' + videofile + '_' + str(j) + '_' + 'originalimage.png')
-    overlay = Image.open(outpath + '/' + videofile + '_' + str(j) + '_' + 'segmentation.png')
-    background = background.convert("RGBA")
-    overlay = overlay.convert("RGBA")
-    outImage = Image.blend(background, overlay, 0.5)
-    outImage.save(outpath + '/' + videofile + '_' + str(j) + '_' + 'overlay.png', "PNG")
+    print(preds.shape)
+    for j in range(0, len(images)): #create segmented image for every second frame
+        plt.figure(figsize = (5, 5))
+        plt.axis('off')
+        plt.imshow(imresize(preds[:,:,j], (nrow,ncol)))
+        plt.savefig(outpath + '/' + videofile + '_' + str(j) + '_' + 'segmentation.png')
+        plt.close() 
+
+        plt.figure(figsize = (5, 5))
+        plt.axis('off')
+        plt.imshow(orig_images[j])
+        plt.savefig(outpath + '/' + videofile + '_' + str(j) + '_' + 'originalimage.png')
+        plt.close() 
+          
+        background = Image.open(outpath + '/' + videofile + '_' + str(j) + '_' + 'originalimage.png')
+        overlay = Image.open(outpath + '/' + videofile + '_' + str(j) + '_' + 'segmentation.png')
+        background = background.convert("RGBA")
+        overlay = overlay.convert("RGBA")
+        outImage = Image.blend(background, overlay, 0.5)
+        outImage.save(outpath + '/' + videofile + '_' + str(j) + '_' + 'overlay.png', "PNG")
     return 1
 
 def segmentstudy(viewlist_a2c, viewlist_a3c, viewlist_a4c, viewlist_psax, viewlist_plax, dicomdir):
@@ -255,12 +262,14 @@ def extract_images(framedict):
         images.append(image)
         orig_images.append(framedict[key])
     images = np.array(images).reshape((len(images), 384,384,1))  
-    print(images.shape)
     return images, orig_images
 
 def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label):
     segs = []
-    preds = np.argmax(model.predict(sess, images[0:1])[0,:,:,:], 2)
+    preds = np.zeros((384,384,len(images)))
+    for i in range(0, len(images)):
+      pred = np.argmax(model.predict(sess, images[i:i+1])[0,:,:,:], 2)
+      preds[:,:,i] = pred
     label_all = range(1, 8)
     label_good = [lv_label, la_label, lvo_label]
     for i in label_all:
@@ -283,8 +292,8 @@ def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label
     return lv_segs, la_segs, lvo_segs, preds
 
 def main():
-    viewfile = "/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/results/view_23_e5_class_11-Mar-2018_dicomsample_probabilities.txt"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
+    viewfile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label +"/results/" + view_label +"_probabilities.txt"
+    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/"
     viewlist_a2c = []
     viewlist_a3c = []
     viewlist_a4c = []
@@ -306,18 +315,19 @@ def main():
     infile = infile.readlines()
     infile = [i.rstrip() for i in infile]
     infile = [i.split('\t') for i in infile]
-
     for i in infile[1:]:
         # dicomdir = i[0]
         filename = i[1]
         filename = filename[:-11]
-        # print(filename)
         if eval(i[viewdict['psax_pap']]) > probthresh:
             if filename not in viewlist_psax:
                 viewlist_psax.append(filename)
         elif eval(i[viewdict['a4c']]) > probthresh:
             if filename not in viewlist_a4c:
                 viewlist_a4c.append(filename)
+        elif eval(i[viewdict['a4c_laocc']]) > probthresh:
+            if filename not in viewlist_a4c:
+                viewlist_a4c.append(filename)      
         elif eval(i[viewdict['a2c']]) > probthresh:
             if filename not in viewlist_a2c:
                 viewlist_a2c.append(filename)
@@ -329,8 +339,8 @@ def main():
                 viewlist_plax.append(filename)
     print(viewlist_a2c, viewlist_a4c, viewlist_a3c, viewlist_psax, viewlist_plax)
     segmentstudy(viewlist_a2c, viewlist_a3c, viewlist_a4c, viewlist_psax, viewlist_plax, dicomdir)
-    tempdir = os.path.join(dicomdir, "image_segment_temp")
-    #if os.path.exists(tempdir):
+    # tempdir = os.path.join(dicomdir, "image_segment_temp")
+    # if os.path.exists(tempdir):
     #    shutil.rmtree(tempdir)
 
 if __name__ == '__main__':
