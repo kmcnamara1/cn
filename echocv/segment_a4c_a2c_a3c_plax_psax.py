@@ -3,6 +3,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import time
 from PIL import Image
 from util import *
 from scipy.misc import imresize
@@ -13,7 +14,7 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 # view_label = "a2c"
 # view_label = "a3c"
-view_label = "a4c"
+# view_label = "a4c"
 # view_label = "plax"
 # view_label = "psax"
 
@@ -130,7 +131,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model1
         with g_1.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess1,'/content/gdrive/My Drive/CardioNexus/echocv_models/a4c_45_20_all_model.ckpt-9000')
+            saver.restore(sess1,'models/a4c_45_20_all_model.ckpt-9000')
     elif view == "a2c":
         g_2 = tf.Graph()
         with g_2.as_default():
@@ -142,7 +143,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model2
         with g_2.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess2,'/content/gdrive/My Drive/CardioNexus/echocv_models/a2c_45_20_all_model.ckpt-10600')
+            saver.restore(sess2,'models/a2c_45_20_all_model.ckpt-10600')
     elif view == "a3c":
         g_3 = tf.Graph()
         with g_3.as_default():
@@ -154,7 +155,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model3
         with g_3.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess3,'/content/gdrive/My Drive/CardioNexus/echocv_models/a3c_45_20_all_model.ckpt-10500')
+            saver.restore(sess3,'models/a3c_45_20_all_model.ckpt-10500')
     elif view == "psax":
         g_4 = tf.Graph()
         with g_4.as_default():
@@ -166,7 +167,7 @@ def segmentChamber(videofile, dicomdir, view):
             model = model4
         with g_4.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess4,'/content/gdrive/My Drive/CardioNexus/echocv_models/psax_45_20_all_model.ckpt-9300')
+            saver.restore(sess4,'models/psax_45_20_all_model.ckpt-9300')
     elif view == "plax":
         g_5 = tf.Graph()
         with g_5.as_default():
@@ -178,8 +179,8 @@ def segmentChamber(videofile, dicomdir, view):
             model = model5
         with g_5.as_default():
             saver = tf.train.Saver()
-            saver.restore(sess5,'/content/gdrive/My Drive/CardioNexus/echocv_models/plax_45_20_all_model.ckpt-9600')
-    outpath = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/image_segmented/" + view + "/"
+            saver.restore(sess5,'models/plax_45_20_all_model.ckpt-9600')
+    outpath = "outputs/" + view + "/image_segmented/" + view + "/"
     if not os.path.exists(outpath):
         os.makedirs(outpath)
     framedict = create_imgdict_from_dicom(dicomdir, videofile)
@@ -268,8 +269,8 @@ def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label
     segs = []
     preds = np.zeros((384,384,len(images)))
     for i in range(0, len(images)):
-      pred = np.argmax(model.predict(sess, images[i:i+1])[0,:,:,:], 2)
-      preds[:,:,i] = pred
+        pred = np.argmax(model.predict(sess, images[i:i+1])[0,:,:,:], 2)
+        preds[:,:,i] = pred
     label_all = range(1, 8)
     label_good = [lv_label, la_label, lvo_label]
     for i in label_all:
@@ -292,56 +293,64 @@ def extract_segs(images, orig_images, model, sess, lv_label, la_label, lvo_label
     return lv_segs, la_segs, lvo_segs, preds
 
 def main():
-    viewfile = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label +"/results/" + view_label +"_probabilities.txt"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/" + view_label + "/"
-    viewlist_a2c = []
-    viewlist_a3c = []
-    viewlist_a4c = []
-    viewlist_plax = []
-    viewlist_psax = []
+    total_x = time.time()
+    total_vids = 0
     
-    infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_view_23_e5_class_11-Mar-2018.txt")
+    outdirs = os.listdir("outputs/")
+    infile = open("echocv/viewclasses_view_23_e5_class_11-Mar-2018.txt") 
     infile = infile.readlines()
     infile = [i.rstrip() for i in infile]
 
-    viewdict = {}
-
-    for i in range(len(infile)):
-        viewdict[infile[i]] = i + 2
-     
     probthresh = 0.9 #arbitrary choice of "probability" threshold for view classification
-
-    infile = open(viewfile)
-    infile = infile.readlines()
-    infile = [i.rstrip() for i in infile]
-    infile = [i.split('\t') for i in infile]
-    for i in infile[1:]:
-        # dicomdir = i[0]
-        filename = i[1]
-        filename = filename[:-11]
-        if eval(i[viewdict['psax_pap']]) > probthresh:
-            if filename not in viewlist_psax:
-                viewlist_psax.append(filename)
-        elif eval(i[viewdict['a4c']]) > probthresh:
-            if filename not in viewlist_a4c:
-                viewlist_a4c.append(filename)
-        elif eval(i[viewdict['a4c_laocc']]) > probthresh:
-            if filename not in viewlist_a4c:
-                viewlist_a4c.append(filename)      
-        elif eval(i[viewdict['a2c']]) > probthresh:
-            if filename not in viewlist_a2c:
-                viewlist_a2c.append(filename)
-        elif eval(i[viewdict['a3c']]) > probthresh:
-            if filename not in viewlist_a3c:
-                viewlist_a3c.append(filename)
-        elif eval(i[viewdict['plax_plax']]) > probthresh:
-            if filename not in viewlist_plax:
-                viewlist_plax.append(filename)
-    print(viewlist_a2c, viewlist_a4c, viewlist_a3c, viewlist_psax, viewlist_plax)
-    segmentstudy(viewlist_a2c, viewlist_a3c, viewlist_a4c, viewlist_psax, viewlist_plax, dicomdir)
-    # tempdir = os.path.join(dicomdir, "image_segment_temp")
-    # if os.path.exists(tempdir):
-    #    shutil.rmtree(tempdir)
+    for view in outdirs:
+        viewfile = "outputs/" + view + "/results/" + view + "_probabilities.txt"
+    
+        dicomdir = "inputs/views/" + view + "/"    
+    
+        viewlist_a2c = []
+        viewlist_a3c = []
+        viewlist_a4c = []
+        viewlist_plax = []
+        viewlist_psax = []
+    
+        viewdict = {}
+        for i in range(len(infile)):
+            viewdict[infile[i]] = i + 2
+     
+        infile = open(viewfile)
+        infile = infile.readlines()
+        infile = [i.rstrip() for i in infile]
+        infile = [i.split('\t') for i in infile]
+        for i in infile[1:]:
+            filename = i[1]
+            filename = filename[:-11]
+            if eval(i[viewdict['psax_pap']]) > probthresh:
+                if filename not in viewlist_psax:
+                    viewlist_psax.append(filename)
+            elif eval(i[viewdict['a4c']]) > probthresh:
+                if filename not in viewlist_a4c:
+                    viewlist_a4c.append(filename)
+            elif eval(i[viewdict['a4c_laocc']]) > probthresh:
+                if filename not in viewlist_a4c:
+                    viewlist_a4c.append(filename)      
+            elif eval(i[viewdict['a2c']]) > probthresh:
+                if filename not in viewlist_a2c:
+                    viewlist_a2c.append(filename)
+            elif eval(i[viewdict['a3c']]) > probthresh:
+                if filename not in viewlist_a3c:
+                    viewlist_a3c.append(filename)
+            elif eval(i[viewdict['plax_plax']]) > probthresh:
+                if filename not in viewlist_plax:
+                    viewlist_plax.append(filename)
+        print(viewlist_a2c, viewlist_a4c, viewlist_a3c, viewlist_psax, viewlist_plax)
+        segmentstudy(viewlist_a2c, viewlist_a3c, viewlist_a4c, viewlist_psax, viewlist_plax, dicomdir)
+        # tempdir = os.path.join(dicomdir, "image_segment_temp")
+        # if os.path.exists(tempdir):
+        #    shutil.rmtree(tempdir)
+        
+    total_y = time.time()
+    print("total time:  ", str(total_y - total_x))
+    print("total number videos: ", str(total_vids))
 
 if __name__ == '__main__':
     main()

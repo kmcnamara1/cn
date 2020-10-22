@@ -6,8 +6,8 @@ import sys
 import cv2
 import pydicom
 import os
-sys.path.append('/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/funcs')
-sys.path.append('/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/nets')
+sys.path.append('echocv/funcs')
+sys.path.append('echocv/nets')
 import subprocess
 import time
 from shutil import rmtree
@@ -75,20 +75,20 @@ def extract_imgs_from_dicom(directory, out_directory):
     @param target: destination folder to where converted jpg files are placed
     """
     allfiles = os.listdir(directory)
-
     for filename in allfiles[:]:
       if not "image" in filename:
          if not "results" in filename:
-              print(filename)
-              ds = pydicom.read_file(os.path.join(directory, filename),force=True)
-              if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-                  outrawfilename = filename + "_raw"
-                  out_directory_path = out_directory + '/' + outrawfilename
-                  ds.save_as(out_directory_path)
-                  counter = 0
-                  while counter < 5:
-                      counter = read_dicom(out_directory, filename, counter)
-                      counter = counter + 1
+             if not "ipynb" in filename:
+                  print(filename)
+                  ds = pydicom.read_file(os.path.join(directory, filename),force=True)
+                  if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
+                      outrawfilename = filename + "_raw"
+                      out_directory_path = out_directory + '/' + outrawfilename
+                      ds.save_as(out_directory_path)
+                      counter = 0
+                      while counter < 5:
+                          counter = read_dicom(out_directory, filename, counter)
+                          counter = counter + 1
     return 1
 
 
@@ -104,6 +104,7 @@ def classify(directory, feature_dim, label_dim, model_name):
         if "jpg" in filename:
             image = imread(directory + filename, flatten = True).astype('uint8')
             imagedict[filename] = [image.reshape((224,224,1))]
+            
 
     tf.reset_default_graph() #clear default graph stack and reset global default graph
     sess = tf.Session() #class for running TF operations
@@ -115,67 +116,71 @@ def classify(directory, feature_dim, label_dim, model_name):
 
     for filename in imagedict:
         predictions[filename] =np.around(model.probabilities(sess, imagedict[filename]), decimals = 3)
-    
     return predictions
 
 
 def main():
+    total_x = time.time()
+    total_vids = 0
     model = "view_23_e5_class_11-Mar-2018"
-    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test-Labelled/"
-    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a2c/"
-    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a3c/"
-    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a4c/"
-    # dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/plax/"
-    dicomdir = "/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/psax/"
-
-    model_name = '/content/gdrive/My Drive/CardioNexus/echocv_models/' + model
-    infile = open("/content/gdrive/My Drive/CardioNexus/GitHubRepo/cn/echocv/viewclasses_" + model + ".txt")
+    model_name = "models/" + model
+    
+    infile = open("echocv/viewclasses_" + model + ".txt") 
     infile = infile.readlines()
     views = [i.rstrip() for i in infile]
-
+    
     feature_dim = 1
     label_dim = len(views)
-
-    results_directory = dicomdir + 'results/'
-    if not os.path.exists(results_directory):
-        os.makedirs(results_directory)
-    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a2c/results/a2c_probabilities.txt", 'w')
-    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a3c/results/a3c_probabilities.txt", 'w')
-    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/a4c/results/a4c_probabilities.txt", 'w')
-    # out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/plax/results/plax_probabilities.txt", 'w')
-    out = open("/content/gdrive/My Drive/CardioNexus/dicomsample/EchoCV-Test/psax/results/psax_probabilities.txt", 'w')
-    out.write("study\timage")
-    for j in views:
-        out.write("\t" + "prob_" + j)
-    out.write('\n')
-
-    x = time.time()
-    temp_image_directory = dicomdir + 'image_view/'
-    # if os.path.exists(temp_image_directory):
-    #     rmtree(temp_image_directory)
-    if not os.path.exists(temp_image_directory):
-        os.makedirs(temp_image_directory)
-    extract_imgs_from_dicom(dicomdir, temp_image_directory)
-    predictions = classify(temp_image_directory, feature_dim, label_dim, model_name)
     
-    predictprobdict = {}
-    for image in predictions.keys():
-        prefix = image.split(".dcm")[0] + ".dcm"
-        if not predictprobdict.__contains__(prefix):
-            predictprobdict[prefix] = []
-        predictprobdict[prefix].append(predictions[image][0])
-    for prefix in predictprobdict.keys():
-        predictprobmean =  np.mean(predictprobdict[prefix], axis = 0)
-        out.write(dicomdir + "\t" + prefix)
-        for i in predictprobmean:
-            out.write("\t" + str(i))
-        out.write( "\n")
+    viewdirs = os.listdir("inputs/views/")
+    
+    outputs_directory = "outputs/"
+    if not os.path.exists(outputs_directory):
+            os.makedirs(outputs_directory)
+            
+    for view in viewdirs:
+        print(view)
+        dicomdir = "inputs/views/" + view + "/"
+        temp_image_directory = outputs_directory + view + '/image_view/'
+        results_directory = outputs_directory + view + '/results/'
 
-    y = time.time()
+        if not os.path.exists(results_directory):
+            os.makedirs(results_directory)
+        if not os.path.exists(temp_image_directory):
+            os.makedirs(temp_image_directory)
 
-    print("time:  " +str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
-    # rmtree(temp_image_directory)
-    out.close()
+        out = open(results_directory + view + "_probabilities.txt", 'w')
+        out.write("study\timage")
+        for j in views:
+            out.write("\t" + "prob_" + j)
+        out.write('\n')
+
+        x = time.time()
+        extract_imgs_from_dicom(dicomdir, temp_image_directory)
+        predictions = classify(temp_image_directory, feature_dim, label_dim, model_name)
+
+        predictprobdict = {}
+        for image in predictions.keys():
+            prefix = image.split(".dcm")[0] + ".dcm"
+            if not predictprobdict.__contains__(prefix):
+                predictprobdict[prefix] = []
+            predictprobdict[prefix].append(predictions[image][0])
+        for prefix in predictprobdict.keys():
+            predictprobmean =  np.mean(predictprobdict[prefix], axis = 0)
+            out.write(dicomdir + "\t" + prefix)
+            for i in predictprobmean:
+                out.write("\t" + str(i))
+            out.write( "\n")
+
+        y = time.time()
+
+        print("time:  " +str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
+        total_vids += len(predictprobdict.keys())
+        # rmtree(temp_image_directory)
+        out.close()
+    total_y = time.time()
+    print("total time:  ", str(total_y - total_x))
+    print("total number videos: ", str(total_vids))
 
 if __name__ == '__main__':
     main()

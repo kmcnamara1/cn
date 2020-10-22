@@ -3,7 +3,7 @@ import sys
 import os
 import pydicom
 import time
-sys.path.append("/home/rdeo/anaconda/lib/python2.7/site-packages/")
+# sys.path.append("/home/rdeo/anaconda/lib/python2.7/site-packages/")
 import numpy as np
 import subprocess
 from subprocess import Popen, PIPE
