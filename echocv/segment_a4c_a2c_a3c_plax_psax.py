@@ -297,10 +297,7 @@ def main():
     total_vids = 0
     
     outdirs = os.listdir("outputs/")
-    infile = open("echocv/viewclasses_view_23_e5_class_11-Mar-2018.txt") 
-    infile = infile.readlines()
-    infile = [i.rstrip() for i in infile]
-
+    
     probthresh = 0.9 #arbitrary choice of "probability" threshold for view classification
     for view in outdirs:
         viewfile = "outputs/" + view + "/results/" + view + "_probabilities.txt"
@@ -314,6 +311,9 @@ def main():
         viewlist_psax = []
     
         viewdict = {}
+        infile = open("echocv/viewclasses_view_23_e5_class_11-Mar-2018.txt") 
+        infile = infile.readlines()
+        infile = [i.rstrip() for i in infile]
         for i in range(len(infile)):
             viewdict[infile[i]] = i + 2
      
@@ -329,10 +329,7 @@ def main():
                     viewlist_psax.append(filename)
             elif eval(i[viewdict['a4c']]) > probthresh:
                 if filename not in viewlist_a4c:
-                    viewlist_a4c.append(filename)
-            elif eval(i[viewdict['a4c_laocc']]) > probthresh:
-                if filename not in viewlist_a4c:
-                    viewlist_a4c.append(filename)      
+                    viewlist_a4c.append(filename)   
             elif eval(i[viewdict['a2c']]) > probthresh:
                 if filename not in viewlist_a2c:
                     viewlist_a2c.append(filename)

@@ -109,13 +109,10 @@ def output_imgdict(imagefile):
     '''
     try:
         ds = imagefile
-        if len(ds.pixel_array.shape) == 4: #OLDformat 3, nframes, nrow, ncol
+        if len(ds.pixel_array.shape) == 4: 
             #format: nframes, nrows, ncols, YUV
             nframes = ds.pixel_array.shape[0]
             maxframes = nframes * 3
-        elif len(ds.pixel_array.shape) == 3: #format nframes, nrow, ncol
-            nframes = ds.pixel_array.shape[0]
-            maxframes = nframes * 1
         nrow = int(ds.Rows)
         ncol = int(ds.Columns)
         ArrayDicom = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
@@ -136,7 +133,38 @@ def output_imgdict(imagefile):
         return imgdict
     except:
         print("Unexpected error:", sys.exc_info()[0])
-        return None
+        pass
+    
+def output_imgdict_still(imagefile):
+    '''
+    converts raw dicom to numpy arrays
+    '''
+    try:
+        ds = imagefile
+        if len(ds.pixel_array.shape) == 3: #format nrow, ncol, depth
+            nframes = 1
+            maxframes = nframes * 1
+        nrow = int(ds.Rows)
+        ncol = int(ds.Columns)
+        ArrayDicom = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
+        imgdict = {}
+        for counter in range(0, nframes):
+            a = ds.pixel_array[:,:,0]
+            g = a.reshape(1, nrow * ncol)
+            y = g.reshape(nrow, ncol)
+            u = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
+            v = np.zeros((nrow, ncol), dtype=ds.pixel_array.dtype)
+            ArrayDicom[:, :] = ybr2gray(y,u,v)
+            ArrayDicom[0:int(nrow / 10), 0:int(ncol)] = 0  # blanks out name
+            ArrayDicom.clip(0)
+            nrowout = nrow
+            ncolout = ncol
+            x = int(counter)
+            imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+        return imgdict
+    except:
+        print("Unexpected error:", sys.exc_info()[0])
+        pass
 
 
 def create_mask(imgs):

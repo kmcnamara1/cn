@@ -14,8 +14,9 @@ from shutil import rmtree
 from shutil import copyfile
 from optparse import OptionParser
 from scipy.misc import imread
-from echoanalysis_tools import output_imgdict
+from echoanalysis_tools import output_imgdict, output_imgdict_still
 from matplotlib import pyplot as plt
+from statistics import mean
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
@@ -36,7 +37,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = params.gpu
 def read_dicom(out_directory, filename, counter):
     if counter < 50:
         outrawfilename = filename + "_raw"
-        print(out_directory, filename, counter, "trying")
+        print(filename, counter, "trying (cine)")
         rawfilenamepath = os.path.join(out_directory, outrawfilename)
         if os.path.exists(rawfilenamepath):
             time.sleep(2)
@@ -45,8 +46,7 @@ def read_dicom(out_directory, filename, counter):
                 framedict = output_imgdict(ds)
                 y = len(framedict.keys()) - 1
                 if y > 10:
-                    # m = random.sample(range(0, y), 10)
-                    m = range(0, y)
+                    m = random.sample(range(0, y), 10)
                     for n in m:
                         targetimage = framedict[n]
                         if (n < 10):
@@ -66,6 +66,31 @@ def read_dicom(out_directory, filename, counter):
             read_dicom(out_directory, filename, counter)
     return counter
 
+
+def read_dicom_still(out_directory, filename, counter):
+    if counter < 50:
+        outrawfilename = filename + "_raw"
+        print(filename, counter, "trying (still)")
+        rawfilenamepath = os.path.join(out_directory, outrawfilename)
+        if os.path.exists(rawfilenamepath):
+            time.sleep(2)
+            try:
+                ds = pydicom.read_file(os.path.join(out_directory, outrawfilename), force=True)
+                framedict = output_imgdict_still(ds)
+                targetimage = framedict[0]
+                outfile = os.path.join(out_directory, filename) + "_01" + '.jpg'
+                resizedimg = cv2.resize(targetimage, (224, 224))
+                cv2.imwrite(outfile, resizedimg, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                counter = 50
+            except (IOError, EOFError, KeyError) as e:
+                print(out_directory + "\t" + outrawfilename + "\t" +
+                      "error", counter, e)
+        else:
+            counter = counter + 1
+            time.sleep(3)
+            read_dicom_still(out_directory, filename, counter)
+    return counter
+
 def extract_imgs_from_dicom(directory, out_directory):
     """
     Extracts jpg images from DCM files in the given directory
@@ -76,19 +101,28 @@ def extract_imgs_from_dicom(directory, out_directory):
     """
     allfiles = os.listdir(directory)
     for filename in allfiles[:]:
-      if not "image" in filename:
-         if not "results" in filename:
-             if not "ipynb" in filename:
-                  print(filename)
-                  ds = pydicom.read_file(os.path.join(directory, filename),force=True)
-                  if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-                      outrawfilename = filename + "_raw"
-                      out_directory_path = out_directory + '/' + outrawfilename
-                      ds.save_as(out_directory_path)
-                      counter = 0
-                      while counter < 5:
-                          counter = read_dicom(out_directory, filename, counter)
-                          counter = counter + 1
+#         if not "file" in filename:
+             if not "results" in filename:
+                if not "ipynb" in filename:
+                    ds = pydicom.read_file(os.path.join(directory, filename),force=True)
+                    if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1): #if cine
+                        outrawfilename = filename + "_raw"
+                        out_directory_path = out_directory + '/' + outrawfilename
+                        ds.save_as(out_directory_path)
+                        counter = 0
+                        while counter < 5:
+                            counter = read_dicom(out_directory, filename, counter)
+                            counter = counter + 1
+                    elif (ds[0x8,0x8][3] == "0001"): # if still with measurements
+                        outrawfilename = filename + "_raw"
+                        out_directory_path = out_directory + '/' + outrawfilename
+                        ds.save_as(out_directory_path)
+                        counter = 0
+                        while counter < 5:
+                            counter = read_dicom_still(out_directory, filename, counter)
+                            counter = counter + 1 
+                    else: # else pulse wave or M mode or Doppler?
+                        print(filename + " not cine or still")
     return 1
 
 
@@ -115,7 +149,7 @@ def classify(directory, feature_dim, label_dim, model_name):
     saver.restore(sess, model_name) #restore model
 
     for filename in imagedict:
-        predictions[filename] =np.around(model.probabilities(sess, imagedict[filename]), decimals = 3)
+        predictions[filename] = np.around(model.probabilities(sess, imagedict[filename]), decimals = 3)
     return predictions
 
 
@@ -132,52 +166,57 @@ def main():
     feature_dim = 1
     label_dim = len(views)
     
-    viewdirs = os.listdir("inputs/views/")
+    viewdirs = os.listdir("inputs/full-studies/")
     
-    outputs_directory = "outputs/"
+    outputs_directory = "outputs/full-studies/"
     if not os.path.exists(outputs_directory):
-            os.makedirs(outputs_directory)
+        os.makedirs(outputs_directory)
+       
             
-    for view in viewdirs:
-        print(view)
-        dicomdir = "inputs/views/" + view + "/"
-        temp_image_directory = outputs_directory + view + '/image_view/'
-        results_directory = outputs_directory + view + '/results/'
+    for study in viewdirs:
+            print(study)
+            x = time.time()
+            dicomdir = "inputs/full-studies/" + study + "/"
+            temp_image_directory = outputs_directory + study + '/image_view/'
+            results_directory = outputs_directory + study + '/results/'
 
-        if not os.path.exists(results_directory):
-            os.makedirs(results_directory)
-        if not os.path.exists(temp_image_directory):
-            os.makedirs(temp_image_directory)
+            if not os.path.exists(results_directory):
+                os.makedirs(results_directory)
+            if os.path.exists(temp_image_directory):
+                rmtree(temp_image_directory)
+                os.makedirs(temp_image_directory)
+            
+            out = open(results_directory + study + "_individual_probabilities.txt", 'w')
+            out.write("study\timage")
+            for j in views:
+                out.write("\t" + "prob_" + j)
+            out.write('\n')
+        
+            extract_imgs_from_dicom(dicomdir, temp_image_directory)
+            predictions = classify(temp_image_directory, feature_dim, label_dim, model_name)
 
-        out = open(results_directory + view + "_probabilities.txt", 'w')
-        out.write("study\timage")
-        for j in views:
-            out.write("\t" + "prob_" + j)
-        out.write('\n')
+            # write probabilities each jpg to txt
+            predictprobdict = {}
+            for image in predictions.keys():
+                prefix = image.split(".dcm")[0] + ".dcm"
+                if not predictprobdict.__contains__(prefix):
+                    predictprobdict[prefix] = []
+                predictprobdict[prefix].append(predictions[image][0])
+            for prefix in predictprobdict.keys():
+                predictprobmean =  np.mean(predictprobdict[prefix], axis = 0)
+                out.write(dicomdir + "\t" + prefix)
+                for i in predictprobmean:
+                    out.write("\t" + str(i))
+                out.write( "\n")
 
-        x = time.time()
-        extract_imgs_from_dicom(dicomdir, temp_image_directory)
-        predictions = classify(temp_image_directory, feature_dim, label_dim, model_name)
+            out.close()
+           
+            y = time.time()
 
-        predictprobdict = {}
-        for image in predictions.keys():
-            prefix = image.split(".dcm")[0] + ".dcm"
-            if not predictprobdict.__contains__(prefix):
-                predictprobdict[prefix] = []
-            predictprobdict[prefix].append(predictions[image][0])
-        for prefix in predictprobdict.keys():
-            predictprobmean =  np.mean(predictprobdict[prefix], axis = 0)
-            out.write(dicomdir + "\t" + prefix)
-            for i in predictprobmean:
-                out.write("\t" + str(i))
-            out.write( "\n")
-
-        y = time.time()
-
-        print("time:  " +str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
-        total_vids += len(predictprobdict.keys())
-        # rmtree(temp_image_directory)
-        out.close()
+            print("time:  " +str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
+            total_vids += len(predictprobdict.keys())
+            
+    
     total_y = time.time()
     print("total time:  ", str(total_y - total_x))
     print("total number videos: ", str(total_vids))
