@@ -113,7 +113,7 @@ def extract_imgs_from_dicom(directory, out_directory):
                         while counter < 5:
                             counter = read_dicom(out_directory, filename, counter)
                             counter = counter + 1
-                    elif (ds[0x8,0x8][3] == "0001"): # if still with measurements
+                    elif (ds[0x8,0x8][3] == "0001"): # if still frame with measurements
                         outrawfilename = filename + "_raw"
                         out_directory_path = out_directory + '/' + outrawfilename
                         ds.save_as(out_directory_path)
@@ -159,7 +159,7 @@ def main():
     model = "view_23_e5_class_11-Mar-2018"
     model_name = "models/" + model
     
-    infile = open("viewclasses_" + model + ".txt") 
+    infile = open("viewclasses_" + model + ".txt")  #class labels
     infile = infile.readlines()
     views = [i.rstrip() for i in infile]
     
@@ -213,7 +213,7 @@ def main():
            
             y = time.time()
 
-            print("time:  " +str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
+            print("time:  " + str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " videos")
             total_vids += len(predictprobdict.keys())
             
     

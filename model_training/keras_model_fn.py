@@ -48,32 +48,23 @@ def model_compile(learning_rate):
 
     return model
 
-def model_fit(model, train_data_dir, valid_data_dir, epoch, batch_size):
+def model_fit(model, train_data_dir, epoch, batch_size):
     
-    train_datagen = ImageDataGenerator(rescale=1./255,
-                                        shear_range=0.2,
-                                        zoom_range=0.2,
-                                        horizontal_flip=True)
+    train_datagen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
+    train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,)    
     
-    train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,) 
+#     history = model.fit(train_generator, epochs=epoch)
+    model.fit(train_generator, epochs=epoch)
+#     print("History:")
+#     print(history)
 
-    validation_generator = train_datagen.flow_from_directory(valid_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,)    
-    
-    history = model.fit(train_generator, epochs=epoch, validation_data=validation_generator)
-
-    print("History:")
-    print(history)
-
-    return model, history
+    return model
 
 
 def _load_training_data(train_data_dir, batch_size):
     assert os.path.exists(train_data_dir), ("Unable to find images resources for input, are you sure you downloaded them ?")
 
-    datagen = ImageDataGenerator(rescale=1./255,
-                                    shear_range=0.2,
-                                    zoom_range=0.2,
-                                    horizontal_flip=True)
+    datagen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
     generator = datagen.flow_from_directory(train_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,)
     images, labels = generator.next()
 
@@ -88,24 +79,34 @@ def _load_testing_data(test_data_dir, batch_size):
     return {INPUT_TENSOR_NAME: images}, labels
 
 def _parse_args():
+    
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_dir', type=str)
+    parser.add_argument('--model_dir', type=str, default=os.environ['SM_MODEL_DIR'])
     parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAINING'))
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--learning_rate', type=float, default=1e-5)
     parser.add_argument('--epochs', type=int, default=10)
-    parser.add_argument('--validation', type=str)
-
     return parser.parse_known_args()
 
-if __name__ == "__main__":
+def main():
     args, unknown = _parse_args()
-#     train_data, train_labels = _load_training_data(args.train, args.batch_size)
-#     eval_data, eval_labels = _load_testing_data(args.train, args.batch_size)  
     raw_model = model_compile(args.learning_rate)
-    view_classifier, history = model_fit(raw_model, args.train, args.validation, args.epochs, args.batch_size)
+    view_classifier = model_fit(raw_model, args.train, args.epochs, args.batch_size)
     
+    model_dir  = args.model_dir
+    sess = K.get_session()
+    tf.saved_model.simple_save(
+            tf.Session(),
+            os.path.join(model_dir, 'model/1'),
+            inputs={'inputs': model.input},
+            outputs={t.name: t for t in model.outputs})
+
+#     view_classifier.save(os.path.join(args.model_dir, '000000001'), 'my_model.h5')
+    
+if __name__ == "__main__":
+    main()
     
 #     if args.current_host == args.hosts[0]:
-#         view_classifier.save(os.path.join(args.sm_model_dir, '000000001'), 'my_model.h5')
+#     view_classifier.save(args.model_dir)
+#     view_classifier.save(os.path.join(args.model_dir, '000000001'), 'my_model.h5')
         
