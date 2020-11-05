@@ -94,7 +94,7 @@ def main():
     view_classifier = model_fit(raw_model, args.train, args.epochs, args.batch_size)
     
     model_dir  = args.model_dir
-    sess = K.get_session()
+    sess = tf.compat.v1.keras.backend.get_session()
     tf.saved_model.simple_save(
             tf.Session(),
             os.path.join(model_dir, 'model/1'),
