@@ -17,7 +17,7 @@ from tensorflow.python.keras.preprocessing.image import load_img
 from echoanalysis_tools import output_imgdict, output_imgdict_still, read_dicom, read_dicom_still, extract_imgs_from_dicom
 
 HEIGHT = 224
-WIDHT = 224
+WIDTH = 224
 QUALITY = 95
 
 def classify(directory, predictor):
@@ -47,7 +47,7 @@ def main():
     
     role = get_execution_role()
     bucket = "sagemaker-ap-southeast-2-611188727347"
-    key = "tensorflow-training-2020-11-09-01-37-28-348"
+    key = "tensorflow-training-2020-11-09-01-37-28-348" #CHANGE THIS TO TRAINED MODEL
     modelPath = "s3://{}/{}/output/model.tar.gz".format(bucket, key)
 
     # Load model
@@ -55,7 +55,7 @@ def main():
     # Deploy model
     predictor = model.deploy(initial_instance_count=1, instance_type='ml.m5.xlarge')
     
-    infile = open("model_training/class_labels.txt")  #class labels
+    infile = open("model_training/class_labels.txt")  #CHANGE THIS TO CLASS LABELS
     infile = infile.readlines()
     views = [i.rstrip() for i in infile]
 
@@ -68,6 +68,7 @@ def main():
     patientStudies = os.listdir(inputDir)
                
     for study in patientStudies:
+        if study == "corl1":
             print(study)
             x = time.time()
             dcmDir = inputDir + study + "/"
@@ -92,6 +93,7 @@ def main():
         
             # extract frames from dcms
             extract_imgs_from_dicom(dcmDir, tempJPGDir)
+            
             # deploy model, make predictions, delete model endpoint
             predictions = classify(tempJPGDir, predictor)
 
@@ -107,7 +109,7 @@ def main():
                 for i in predictprobdict[prefix][0]:
                     out.write("\t" + str(i))
                 out.write("\n")
-
+            
             out.close()
            
             y = time.time()

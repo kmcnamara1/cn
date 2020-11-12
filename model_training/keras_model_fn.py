@@ -21,6 +21,14 @@ WIDTH = 224
 DEPTH = 3
 
 def model_compile(learning_rate, drop_out, dense):
+    """
+    Compile VGG architecture with as Keras Sequential model.
+    Adam optimiser. 
+    
+    Set softmax layer to number of classes
+    
+    API: https://www.tensorflow.org/api_docs/python/tf/keras/Sequential
+    """
     model = Sequential()
     model.add(Conv2D(input_shape=(HEIGHT,WIDTH,DEPTH),filters=64,kernel_size=(3,3),padding="same",activation="relu",name="inputs"))
     model.add(Conv2D(filters=64,kernel_size=(3,3),padding="same", activation="relu"))
@@ -52,6 +60,18 @@ def model_compile(learning_rate, drop_out, dense):
     return model
 
 def model_fit(model, trainDataDir, evalDataDir, epoch, batch_size):
+    """
+    Parameters:
+        model: raw model
+        trainDataDir: S3 URI to directory with training data, mutually exclusive to validation and testing data
+        evalDataDir: S3 URI to directory with training data, mutually exclusive to training and testing data
+        epoch: number of epochs
+        batch_size: mini batch size of Image Data Generator
+    
+    API: https://www.tensorflow.org/api_docs/python/tf/keras/preprocessing/image/ImageDataGenerator
+    
+    Return: trained model
+    """
     
     trainDataGen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2)
     trainGenerator = trainDataGen.flow_from_directory(trainDataDir, target_size=(HEIGHT, WIDTH), 

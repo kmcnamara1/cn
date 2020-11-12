@@ -1,14 +1,16 @@
-import sys
 import os
-import pydicom
-import time
+import sys
 import cv2
+import time
+import random
+import pydicom
+import sagemaker
 import numpy as np
 import subprocess
 from subprocess import Popen, PIPE
 
 HEIGHT = 224
-WIDHT = 224
+WIDTH = 224
 QUALITY = 95
 
 def computehr_gdcm(ds):
@@ -230,7 +232,7 @@ def read_dicom(outputDir, filename, count):
                             outputFilename = os.path.join(outputDir, filename) + "_0" + str(n) + '.jpg'
                         else:
                             outputFilename = os.path.join(outputDir, filename) + "_" + str(n) + '.jpg'
-                        resizedImage = cv2.resize(targetImage, (HEIGHT, WIDHT))
+                        resizedImage = cv2.resize(targetImage, (HEIGHT, WIDTH))
                         cv2.imwrite(outputFilename, resizedImage, [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
                         count = 50
             except (IOError, EOFError, KeyError) as error:
@@ -256,7 +258,7 @@ def read_dicom_still(outputDir, filename, count):
                 frameDictionary = output_imgdict_still(ds)
                 targetImage = frameDictionary[0]
                 outputFilename = os.path.join(outputDir, filename) + "_01" + '.jpg'
-                resizedImage = cv2.resize(targetImage, (HEIGHT, WIDHT))
+                resizedImage = cv2.resize(targetImage, (HEIGHT, WIDTH))
                 cv2.imwrite(outputFilename, resizedImage, [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
                 count = 50
             except (IOError, EOFError, KeyError) as error:

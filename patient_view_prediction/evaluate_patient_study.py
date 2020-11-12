@@ -11,11 +11,16 @@ import tensorflow as tf
 from shutil import rmtree
 from shutil import copyfile
 
+HEIGHT = 224
+WIDTH = 224
+QUALITY = 95
+
 def analyse_probabilities(inputPatientDir, outputPatientDir):
 
     inputPatientDirList = os.listdir(inputPatientDir)
 
     for patient in inputPatientDirList:
+        if patient == "corl1":
             filelist = os.listdir(inputPatientDir + patient + "/")
             patientResultDir = outputPatientDir + patient + '/results/'        
             out = open(patientResultDir + patient + "_study_probabilities_c8.txt", 'w')
