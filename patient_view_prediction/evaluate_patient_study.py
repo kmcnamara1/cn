@@ -11,67 +11,62 @@ import tensorflow as tf
 from shutil import rmtree
 from shutil import copyfile
 
-def analyse_probabilities(input_patients_directory, output_patients_directory):
+def analyse_probabilities(inputPatientDir, outputPatientDir):
 
-    input_patients_directory_list = os.listdir(input_patients_directory)
+    inputPatientDirList = os.listdir(inputPatientDir)
 
-    for patient in input_patients_directory_list:
-        if patient == "byrn1":
-            filelist = os.listdir(input_patients_directory + patient + "/")
-            patient_result_directory = output_patients_directory + patient + '/results/'        
-            out = open(patient_result_directory + patient + "_study_probabilities_c8.txt", 'w')
+    for patient in inputPatientDirList:
+            filelist = os.listdir(inputPatientDir + patient + "/")
+            patientResultDir = outputPatientDir + patient + '/results/'        
+            out = open(patientResultDir + patient + "_study_probabilities_c8.txt", 'w')
 
-            viewdict = {}
+            classDict = {}
             infile = open("model_training/class_labels.txt") 
             infile = infile.readlines()
             infile = [i.rstrip() for i in infile]
             for i in range(len(infile)):
-                viewdict[infile[i]] = i + 2
+                classDict[infile[i]] = i + 2
 
-            viewfile = output_patients_directory + patient + "/results/" + patient + "_individual_probabilities_c8.txt"
-            infile = open(viewfile)
+            probabilityFile = outputPatientDir + patient + "/results/" + patient + "_individual_probabilities_c8.txt"
+            infile = open(probabilityFile)
             infile = infile.readlines()
             infile = [i.rstrip() for i in infile]
             infile = [i.split('\t') for i in infile]
 
-            pred_views_90 = {}
-            unpred_views = {}
-            out.write("filename" + "\t" + "predicted class" + "\t" + "probability" + "\n")
-            for key in viewdict.keys():
-                pred_views_90[key] = []
-                unpred_views[key] = []
+            predictedClass90 = {}
+            out.write("Filename" + "\t" + "Predicted Class" + "\t" + "Likelihood" + "\n")
+            for key in classDict.keys():
+                predictedClass90[key] = []
             for i in infile[1:]: #for each filename
-                filename_og = i[1]
-                filename = filename_og[:-7]
+                filenameOriginal = i[1]
+                filename = filenameOriginal[:-7]
 
-                for key in viewdict.keys():
-                    if eval(i[viewdict[key]]) > 0.9:
-                        pred_views_90[key].append(filename)
-                    else:
-                        unpred_views[key].append(filename)
+                for key in classDict.keys():
+                    if eval(i[classDict[key]]) > 0.9:
+                        predictedClass90[key].append(filename)
             
-            found_views = []
-            for key in pred_views_90.keys():
-                    out_arr = []
-                    for filename in pred_views_90[key]:
-                        count = pred_views_90[key].count(filename)
+            predictedClasses = []
+            for key in predictedClass90.keys():
+                    predictedClassesArray = []
+                    for filename in predictedClass90[key]:
+                        count = predictedClass90[key].count(filename)
                         if count >= 3:
-                            if filename not in out_arr:
-                                out_arr.append(filename)
-                                found_views.append(filename)
+                            if filename not in predictedClassesArray:
+                                predictedClassesArray.append(filename)
+                                predictedClasses.append(filename)
                                 out.write(filename + "\t" + str(key) + "\t" + "0.9" + "\n")
                     
             for file in filelist:
-                if file not in found_views:
+                if file not in predictedClasses:
                     out.write(file + "\t" + "none" + "\t" + "0" + "\n")
               
             out.close()
 
 
 def main():
-    inputs_directory = "inputs/full-studies/" #local directory of patient DICOMS
-    outputs_directory = "outputs/full-studies/" #local directory of patient results
-    analyse_probabilities(inputs_directory, outputs_directory)
+    inputDir = "inputs/full-studies/" #local directory of patient DICOMS
+    outputDir = "outputs/full-studies/" #local directory of patient results
+    analyse_probabilities(inputDir, outputDir)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,9 @@ import numpy as np
 import subprocess
 from subprocess import Popen, PIPE
 
+HEIGHT = 224
+WIDHT = 224
+QUALITY = 95
 
 def computehr_gdcm(ds):
     hr = "None"
@@ -198,15 +201,8 @@ def create_imgdict_from_dicom(directory, filename):
     convert compressed DICOM format into numpy array
     """
     targetfile = os.path.join(directory, filename)
-    # temp_directory = os.path.join(directory, "image_segment")
-    # if not os.path.exists(temp_directory):
-    #     os.makedirs(temp_directory)
     ds = pydicom.read_file(targetfile, force = True)
     if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1):
-        # outrawfile = os.path.join(temp_directory, filename + "_raw")
-        # command = 'gdcmconv -w ' + os.path.join(directory, filename) + " "  + outrawfile
-        # subprocess.Popen(command, shell=True)
-        # time.sleep(10)
         if os.path.exists(targetfile):
             ds = pydicom.read_file(targetfile, force = True)
             imgdict = output_imgdict(ds)
@@ -214,4 +210,98 @@ def create_imgdict_from_dicom(directory, filename):
             print(targetfile, "missing")
     return imgdict
 
+def read_dicom(outputDir, filename, count):
+    if count < 50:
+        print(filename, count, "trying [cine]")
+
+        outRawFilename = filename + "_raw"
+        rawFilenamePath = os.path.join(outputDir, outRawFilename)
+        if os.path.exists(rawFilenamePath):
+            time.sleep(2)
+            try:
+                ds = pydicom.read_file(os.path.join(outputDir, outRawFilename), force=True)
+                frameDictionary = output_imgdict(ds)
+                y = len(frameDictionary.keys()) - 1
+                if y > 10:
+                    m = random.sample(range(0, y), 10)
+                    for n in m:
+                        targetImage = frameDictionary[n]
+                        if (n < 10):
+                            outputFilename = os.path.join(outputDir, filename) + "_0" + str(n) + '.jpg'
+                        else:
+                            outputFilename = os.path.join(outputDir, filename) + "_" + str(n) + '.jpg'
+                        resizedImage = cv2.resize(targetImage, (HEIGHT, WIDHT))
+                        cv2.imwrite(outputFilename, resizedImage, [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
+                        count = 50
+            except (IOError, EOFError, KeyError) as error:
+                print(outputDir + "\t" + outRawFilename + "\t" +
+                      "error", count, error)
+        else:
+            count = count + 1
+            time.sleep(3)
+            print("D")
+            read_dicom(outputDir, filename, count)
+    return count
+
+
+def read_dicom_still(outputDir, filename, count):
+    if count < 50:
+        outRawFilename = filename + "_raw"
+        print(filename, count, "trying [still]")
+        rawFilenamePath = os.path.join(outputDir, outRawFilename)
+        if os.path.exists(rawFilenamePath):
+            time.sleep(2)
+            try:
+                ds = pydicom.read_file(os.path.join(outputDir, outRawFilename), force=True)
+                frameDictionary = output_imgdict_still(ds)
+                targetImage = frameDictionary[0]
+                outputFilename = os.path.join(outputDir, filename) + "_01" + '.jpg'
+                resizedImage = cv2.resize(targetImage, (HEIGHT, WIDHT))
+                cv2.imwrite(outputFilename, resizedImage, [cv2.IMWRITE_JPEG_QUALITY, QUALITY])
+                count = 50
+            except (IOError, EOFError, KeyError) as error:
+                print(outputDir + "\t" + outRawFilename + "\t" +
+                      "error", count, error)
+        else:
+            count = count + 1
+            time.sleep(3)
+            read_dicom_still(outputDir, filename, count)
+    return count
+
+def extract_imgs_from_dicom(inputDir, outputDir):
+    """
+    Extracts jpg images from DCM files in the given inputDir
+
+    @param inputDir: folder with DCM files of echos
+    @param outputDir: destination folder to where converted jpg files are placed
+    @param target: destination folder to where converted jpg files are placed
+    """
+    allFilenames = os.listdir(inputDir)
+    for filename in allFilenames[:]:
+        if not "results" in filename:
+            if not "ipynb" in filename:
+                ds = pydicom.read_file(os.path.join(inputDir, filename),force=True)
+                # CINE filename:
+                if ("NumberOfFrames" in  dir(ds)) and (ds.NumberOfFrames>1): 
+                    outRawFilename = filename + "_raw"
+                    outputDirPath = outputDir + '/' + outRawFilename
+                    ds.save_as(outputDirPath)
+                    count = 0
+                    while count < 5:
+                        count = read_dicom(outputDir, filename, count)
+                        count = count + 1
+                # STILL FRAME w/ MEASUREMENTS:
+                elif (ds[0x8,0x8][3] == "0001"): 
+                    outRawFilename = filename + "_raw"
+                    outputDirPath = outputDir + '/' + outRawFilename
+                    ds.save_as(outputDirPath)
+                    count = 0
+                    while count < 5:
+                        count = read_dicom_still(outputDir, filename, count)
+                        count = count + 1 
+                
+                # else pulse wave or M mode or Doppler?
+                else:
+                    print(filename + " not cine or still")
+    return 1
 

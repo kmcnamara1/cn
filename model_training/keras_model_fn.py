@@ -20,7 +20,7 @@ HEIGHT = 224
 WIDTH = 224
 DEPTH = 3
 
-def model_compile(learning_rate, drop_out):
+def model_compile(learning_rate, drop_out, dense):
     model = Sequential()
     model.add(Conv2D(input_shape=(HEIGHT,WIDTH,DEPTH),filters=64,kernel_size=(3,3),padding="same",activation="relu",name="inputs"))
     model.add(Conv2D(filters=64,kernel_size=(3,3),padding="same", activation="relu"))
@@ -42,8 +42,8 @@ def model_compile(learning_rate, drop_out):
     model.add(MaxPool2D(pool_size=(2,2),strides=(2,2)))
     model.add(Dropout(drop_out))
     model.add(Flatten())
-    model.add(Dense(units=4096,activation="relu"))
-    model.add(Dense(units=4096,activation="relu"))
+    model.add(Dense(units=dense,activation="relu"))
+    model.add(Dense(units=dense,activation="relu"))
     model.add(Dense(units=8, activation="softmax"))
 
     opt = Adam(lr=learning_rate)
@@ -51,40 +51,23 @@ def model_compile(learning_rate, drop_out):
 
     return model
 
-def model_fit(model, train_data_dir, eval_data_dir, epoch, batch_size):
+def model_fit(model, trainDataDir, evalDataDir, epoch, batch_size):
     
-    train_datagen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2)
-    train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(HEIGHT, WIDTH), 
+    trainDataGen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2)
+    trainGenerator = trainDataGen.flow_from_directory(trainDataDir, target_size=(HEIGHT, WIDTH), 
                                                         batch_size=batch_size, shuffle=True)   
     
-    eval_datagen = ImageDataGenerator(rescale=1./255)
-    eval_generator = eval_datagen.flow_from_directory(eval_data_dir, target_size=(HEIGHT, WIDTH), 
+    evalDataGen = ImageDataGenerator(rescale=1./255)
+    evalGenerator = evalDataGen.flow_from_directory(evalDataDir, target_size=(HEIGHT, WIDTH), 
                                                       batch_size=batch_size, shuffle=True,) 
     
-    model.fit(train_generator, epochs=epoch)
-    score = model.evaluate(eval_generator)
+    model.fit(trainGenerator, epochs=epoch)
+    score = model.evaluate(evalGenerator)
 
     print("EVAL SCORES:", score)
 
     return model
 
-
-def _load_training_data(train_data_dir, batch_size):
-    assert os.path.exists(train_data_dir), ("Unable to find images resources for input, are you sure you downloaded them ?")
-
-    datagen = ImageDataGenerator(rescale=1./255, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
-    generator = datagen.flow_from_directory(train_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,)
-    images, labels = generator.next()
-
-    return {INPUT_TENSOR_NAME: images}, labels
-
-def _load_testing_data(test_data_dir, batch_size):
-    
-    datagen = ImageDataGenerator(rescale=1./255)
-    generator = datagen.flow_from_directory(test_data_dir, target_size=(HEIGHT, WIDTH), batch_size=batch_size, shuffle=True,)
-    images, labels = generator.next()
-
-    return {INPUT_TENSOR_NAME: images}, labels
 
 def _parse_args():
     
@@ -96,6 +79,7 @@ def _parse_args():
     parser.add_argument('--learning_rate', type=float, default=1e-5)
     parser.add_argument('--epochs', type=int, default=10)
     parser.add_argument('--drop_out', type=float, default=0.5)
+    parser.add_argument('--dense', type=float, default=4096)
     return parser.parse_known_args()
 
 def save_model(model, model_dir):
@@ -105,18 +89,14 @@ def save_model(model, model_dir):
     
 
 def main():
-    args, unknown = _parse_args()
+    args, ~ = _parse_args()
     
-    raw_model = model_compile(args.learning_rate, args.drop_out)
-    view_classifier = model_fit(raw_model, args.training, args.validation, args.epochs, args.batch_size)
+    rawModel = model_compile(args.learning_rate, args.drop_out, args.dense)
+    viewClassifier = model_fit(rawModel, args.training, args.validation, args.epochs, args.batch_size)
     
-    model_dir = args.model_dir
-    save_model(view_classifier, model_dir)
+    modelDir = args.model_dir
+    save_model(viewClassifier, modelDir)
     
 if __name__ == "__main__":
     main()
     
-#     if args.current_host == args.hosts[0]:
-#     view_classifier.save(args.model_dir)
-#     view_classifier.save(os.path.join(args.model_dir, '000000001'), 'my_model.h5')
-        
