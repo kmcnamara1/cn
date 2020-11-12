@@ -1,21 +1,20 @@
 from __future__ import division, print_function, absolute_import
-import numpy as np
-import tensorflow as tf
-import sagemaker
-import random
+import os
 import sys
 import cv2
-import pydicom
-import os
-# sys.path.append('echocv/funcs')
-sys.path.append('support_funcs')
 import time
-from sagemaker.tensorflow import TensorFlowModel
-from sagemaker import get_execution_role
+import random
+import pydicom
+import sagemaker
+import numpy as np
+import tensorflow as tf
+sys.path.append('support_funcs')
 from shutil import rmtree
-from scipy.misc import imread
-from echoanalysis_tools import output_imgdict, output_imgdict_still
 from statistics import mean
+from sagemaker import get_execution_role
+from sagemaker.tensorflow import TensorFlowModel
+from tensorflow.python.keras.preprocessing.image import load_img
+from echoanalysis_tools import output_imgdict, output_imgdict_still
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
@@ -55,19 +54,11 @@ def read_dicom(out_directory, filename, counter):
         else:
             counter = counter + 1
             time.sleep(3)
-            print("D")
             read_dicom(out_directory, filename, counter)
     return counter
 
 
 def read_dicom_still(out_directory, filename, counter):
-    """
-    Reads DICOM file for still image
-
-    @param directory: folder with DCM files of echos
-    @param out_directory: destination folder to where converted jpg files are placed
-    @param target: destination folder to where converted jpg files are placed
-    """
     if counter < 50:
         outrawfilename = filename + "_raw"
         print(filename, counter, "trying [still]")
@@ -96,7 +87,9 @@ def read_dicom_still(out_directory, filename, counter):
 
 def extract_imgs_from_dicom(directory, out_directory):
     """
-    Extracts jpg images from DCM files in the given directory
+    Extracts jpg images from DCM files in the given directory.
+    Calls 'read_dicom_still' for still DCM
+    Calls 'read_dicom' for cine DCM
 
     @param directory: folder with DCM files of echos
     @param out_directory: destination folder to where converted jpg files are placed
@@ -120,7 +113,7 @@ def extract_imgs_from_dicom(directory, out_directory):
                     
                     elif (ds[0x8,0x8][3] == "0001"): # if still frame with measurements
                         outrawfilename = filename + "_raw"
-                        out_directory_path = out_directory + '/' + outrawfilename
+                        out_directory_path = out_directory + outrawfilename
                         ds.save_as(out_directory_path)
                         counter = 0
                         while counter < 5:
@@ -132,16 +125,12 @@ def extract_imgs_from_dicom(directory, out_directory):
     return 1
 
 
-def classify(directory, feature_dim, label_dim, model_path, role):
+def classify(directory, predictor):
     """
     Classifies echo images in given directory
-
+    
     @param directory: folder with jpg echo images for classification
     """
-    # Load model
-    model = TensorFlowModel(model_data=model_path, role=role, framework_version='2.1.0')
-    # Deploy model
-    predictor = model.deploy(initial_instance_count=1, instance_type='ml.m5.2xlarge')
 
     imagedict = {}
     predictions = {}
@@ -153,10 +142,7 @@ def classify(directory, feature_dim, label_dim, model_path, role):
     for filename in imagedict:
         result = predictor.predict({'inputs_input': imagedict[filename]})
         predictions[filename] = result["predictions"][0]
-    
-    # Delete model endpoint
-    sagemaker.Session().delete_endpoint(predictor.endpoint)
-    
+
     return predictions
 
 
@@ -179,13 +165,18 @@ def main():
     outputs_directory = "outputs/full-studies/"
     inputs_directory = "inputs/full-studies/"
     
-    patient_studies = os.listdirinputs_directory)
+    patient_studies = os.listdir(inputs_directory)
     
     if not os.path.exists(outputs_directory):
         os.makedirs(outputs_directory)
+        
+    # Load model
+    model = TensorFlowModel(model_data=model_path, role=role, framework_version='2.1.0')
+    # Deploy model
+    predictor = model.deploy(initial_instance_count=1, instance_type='ml.m5.xlarge')
                
     for study in patient_studies:
-        if study == "bend1":
+        if study == "byrn1":
             print(study)
             x = time.time()
             dicomdir = inputs_directory + study + "/"
@@ -198,40 +189,43 @@ def main():
             if os.path.exists(temp_jpg_directory):
                 rmtree(temp_jpg_directory)
                 os.makedirs(temp_jpg_directory)
-            
+            else:
+                os.makedirs(temp_jpg_directory)
+                
             # open file to save predictions
             out = open(results_directory + study + "_individual_probabilities_c8.txt", 'w')
-            out.write("study\timage")
+            out.write("study" + "\t" + "image")
             for j in views:
                 out.write("\t" + "prob_" + j)
-            out.write('\n')
+            out.write("\n")
         
-            # extract 10 frames from dcms
+            # extract frames from dcms
             extract_imgs_from_dicom(dicomdir, temp_jpg_directory)
             # deploy model, make predictions, delete model endpoint
-            predictions = classify(temp_jpg_directory, feature_dim, label_dim, model_path, role)
+            predictions = classify(temp_jpg_directory, predictor)
 
             # write probabilities each jpg to txt
             predictprobdict = {}
             for image in predictions.keys():
-                prefix = image.split(".dcm")[0] + ".dcm"
+                prefix = image.split(".dcm")[0]
                 if not predictprobdict.__contains__(prefix):
                     predictprobdict[prefix] = []
-                predictprobdict[prefix].append(predictions[image][0])
+                predictprobdict[prefix].append(predictions[image])
             for prefix in predictprobdict.keys():
-                predictprobmean =  np.mean(predictprobdict[prefix], axis = 0)
                 out.write(dicomdir + "\t" + prefix)
-                for i in predictprobmean:
+                for i in predictprobdict[prefix][0]:
                     out.write("\t" + str(i))
-                out.write( "\n")
+                out.write("\n")
 
             out.close()
            
             y = time.time()
 
             print("time:  " + str(y - x) + " seconds for " +  str(len(predictprobdict.keys()))  + " dcms")
-            total_vids += len(predictprobdict.keys())
+            total_dicoms += len(predictprobdict.keys())
             
+    # Delete model endpoint
+    sagemaker.Session().delete_endpoint(predictor.endpoint)
     
     total_y = time.time()
     print("total time:  ", str(total_y - total_x))

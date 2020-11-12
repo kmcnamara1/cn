@@ -1,25 +1,22 @@
 from __future__ import division, print_function, absolute_import
-import numpy as np
-import tensorflow as tf
-import random
+import os
 import sys
 import cv2
-import pydicom
-import os
-import subprocess
 import time
+import random
+import pydicom
+import subprocess
+import numpy as np
+import tensorflow as tf
 from shutil import rmtree
 from shutil import copyfile
-from optparse import OptionParser
-from scipy.misc import imread
-from matplotlib import pyplot as plt
 
 def analyse_probabilities(input_patients_directory, output_patients_directory):
 
     input_patients_directory_list = os.listdir(input_patients_directory)
 
     for patient in input_patients_directory_list:
-
+        if patient == "byrn1":
             filelist = os.listdir(input_patients_directory + patient + "/")
             patient_result_directory = output_patients_directory + patient + '/results/'        
             out = open(patient_result_directory + patient + "_study_probabilities_c8.txt", 'w')
@@ -45,7 +42,7 @@ def analyse_probabilities(input_patients_directory, output_patients_directory):
                 unpred_views[key] = []
             for i in infile[1:]: #for each filename
                 filename_og = i[1]
-                filename = filename_og[:-11]
+                filename = filename_og[:-7]
 
                 for key in viewdict.keys():
                     if eval(i[viewdict[key]]) > 0.9:

@@ -1,14 +1,12 @@
-# coding: utf-8
 import sys
 import os
 import pydicom
 import time
-# sys.path.append("/home/rdeo/anaconda/lib/python2.7/site-packages/")
+import cv2
 import numpy as np
 import subprocess
 from subprocess import Popen, PIPE
-from scipy.misc import imresize
-import cv2
+
 
 def computehr_gdcm(ds):
     hr = "None"
@@ -129,7 +127,7 @@ def output_imgdict(imagefile):
             nrowout = nrow
             ncolout = ncol
             x = int(counter)
-            imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+            imgdict[x] = cv2.resize(ArrayDicom, (nrowout, ncolout))
         return imgdict
     except:
         print("Unexpected error:", sys.exc_info()[0])
@@ -160,7 +158,7 @@ def output_imgdict_still(imagefile):
             nrowout = nrow
             ncolout = ncol
             x = int(counter)
-            imgdict[x] = imresize(ArrayDicom, (nrowout, ncolout))
+            imgdict[x] = cv2.resize(ArrayDicom, (nrowout, ncolout))
         return imgdict
     except:
         print("Unexpected error:", sys.exc_info()[0])
