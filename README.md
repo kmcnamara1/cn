@@ -11,15 +11,18 @@ Python: 3.6
 Code: ./echocv/
 Original EchoCV models: ./echocv_models/
 
-## To train model:
+## To train view prediction model:
 See train_vgg.ipynb.
 Training, validation data flows from S3
 Code: ./model_training/
 
-## To use model:
+## To use view prediction model:
 See deploy_predict_vgg.ipynb
 Download patient from S3 and store in this notebook instance to local directory ./inputs/
 Upload patient results to S3 from local directory ./outputs/
+
+## To use a2c,a3c,a4c,psax,plax segmentation & measurements:
+See ./echocv/ 
 
 ## Supplementary:
 Code: ./support_funcs/
